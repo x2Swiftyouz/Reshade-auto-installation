@@ -61,7 +61,7 @@ try { [Net.WebRequest]::DefaultCachePolicy = New-Object Net.Cache.HttpRequestCac
 # If you host this script online (for "irm ... | iex"), put its raw URL here so the
 # Desktop shortcut and the weekly update check can save a local copy.
 $SelfUrl = 'https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/install-reshade.ps1'
-$ScriptVersion = '3.1.0'
+$ScriptVersion = '3.2.0'
 
 # Running as an .exe built with ps2exe?
 $SelfProcess = (Get-Process -Id $PID).Path
@@ -704,7 +704,7 @@ function Invoke-Cleanup {
         $moved++
     }
     Save-State
-    Log 'ok' ((M 'ปิด effect แล้ว ' 'Turned off ') + $moved + (M ' ไฟล์ (คืนได้ที่ "คืน effect ที่ปิด")' ' files (undo with "Restore turned-off effects")'))
+    Log 'ok' ((M 'ปิด effect แล้ว ' 'Turned off ') + $moved + (M ' ไฟล์' ' files'))
     Set-Progress 100 $null
     return $moved
 }
@@ -1177,8 +1177,6 @@ function Show-Gui {
     # Sidebar navigation.
     $navItems = @(
         @('home',    (M 'หน้าหลัก' 'Home')),
-        @('effects', (M 'ชุด effect' 'Effects')),
-        @('presets', 'Presets'),
         @('hotkeys',   (M 'ปุ่มลัด' 'Hotkeys')),
         @('tools',   (M 'เครื่องมือ / ตั้งค่า' 'Tools / settings'))
     )
@@ -1201,7 +1199,6 @@ function Show-Gui {
             $ui.Nav[$k].ForeColor = $(if ($k -eq $name) { $Clr.Text } else { $Clr.Dim })
         }
         switch ($name) {
-            'presets' { Fill-Presets }
             'hotkeys' { Load-Hotkeys }
             'tools'   { $ui.PathBox.Text = $Ctx.FiveMApp }
         }
@@ -1300,7 +1297,6 @@ finally { `$Ctx.Sync.Done = `$true }
         $ui.CardFxSub.Text = "$($st.Packages) " + (M 'ชุด, ' 'packages, ') + (Format-Size $st.ShadersSize) + $(if ($st.Disabled) { (M ", ปิด $($st.Disabled)" ", $($st.Disabled) off") } else { '' })
         $ui.CardPreset.Text = $(if ($st.Preset) { $st.Preset } else { '-' })
         $ui.HeadSub.Text = 'FiveM.app: ' + $Ctx.FiveMApp + $(if (-not $st.FiveMFound) { (M '   (ไม่พบ!)' '   (not found!)') } else { '' })
-        if ($ui.FxInfo) { $ui.FxInfo.Text = (M 'ใช้พื้นที่: ' 'Disk use: ') + (Format-Size $st.ShadersSize) + '   ' + (M 'effect ที่ปิดไว้: ' 'Turned off: ') + $st.Disabled }
     }
 
     # ======================= HOME =======================
@@ -1336,10 +1332,8 @@ finally { `$Ctx.Sync.Done = `$true }
     })
 
     $null = B $pg (M 'ติดตั้ง / อัปเดต' 'Install / update') 24 296 230 52 'accent' {
-        $urls = $null
-        $haveShaders = Test-Path -LiteralPath (Join-Path $Ctx.ShadersDir 'Shaders')
-        if (-not (@($Ctx.State.Packages).Count -and $haveShaders) -and $ui.Packages.Count) { $urls = @(Get-CheckedUrls) }
-        $opt = @{ Addon = $ui.OptAddon.Checked; Force = $false; PackageUrls = $urls; EffectsOnly = $false }
+        # Effect packages: the ones saved from last time, or the recommended set.
+        $opt = @{ Addon = $ui.OptAddon.Checked; Force = $false; PackageUrls = $null; EffectsOnly = $false }
         Start-Work (M 'ติดตั้ง / อัปเดต ReShade' 'Install / update ReShade') 'Invoke-Install $Opt' $opt $true {
             param($r)
             $ui.Status.Text = (M 'เสร็จแล้ว! เข้า FiveM แล้วกด Home เพื่อเปิด ReShade' 'Done! In FiveM press Home to open ReShade')
@@ -1359,139 +1353,6 @@ finally { `$Ctx.Sync.Done = `$true }
     }
     $null = B $pg 'Changelog' 694 296 100 52 '' { Start-Process 'https://reshade.me' } $false
     $null = L $pg (M 'ในเกม: Home = เปิดเมนู ReShade   |   ตั้งปุ่มอื่นได้ที่หน้า "ปุ่มลัด"' 'In game: Home = ReShade menu   |   change keys on the "Hotkeys" page') 24 362 770 22 $Fnt.Small $Clr.Dim
-
-    # ======================= EFFECTS =======================
-    $pg = New-Page 'effects' (M 'ชุด effect' 'Effect packages')
-    $null = L $pg (M 'ค้นหา' 'Search') 24 58 60 26 $Fnt.Normal $Clr.Dim
-    $ui.Search = New-Object Windows.Forms.TextBox
-    $ui.Search.Location = New-Object Drawing.Point 84, 56; $ui.Search.Size = New-Object Drawing.Size 300, 26
-    $ui.Search.BackColor = $Clr.Card; $ui.Search.ForeColor = $Clr.Text; $ui.Search.BorderStyle = 'FixedSingle'
-    $ui.Search.Add_TextChanged({ Fill-PackageList })
-    $pg.Controls.Add($ui.Search)
-    $null = B $pg (M 'แนะนำ' 'Recommended') 400 54 110 30 '' { Set-Checked 'recommended' } $false
-    $null = B $pg (M 'ทั้งหมด' 'All') 516 54 90 30 '' { Set-Checked 'all' } $false
-    $null = B $pg (M 'พื้นฐาน' 'Basic') 612 54 90 30 '' { Set-Checked 'basic' } $false
-    $null = B $pg (M 'เว็บ' 'Web') 708 54 86 30 '' {
-        if ($ui.Lv.SelectedItems.Count -and $ui.Lv.SelectedItems[0].Tag.Repo) { Start-Process $ui.Lv.SelectedItems[0].Tag.Repo }
-    } $false
-
-    $lv = New-Object Windows.Forms.ListView
-    $lv.Location = New-Object Drawing.Point 24, 92; $lv.Size = New-Object Drawing.Size 770, 222
-    $lv.View = 'Details'; $lv.CheckBoxes = $true; $lv.FullRowSelect = $true; $lv.HideSelection = $false
-    $lv.BackColor = $Clr.Card; $lv.ForeColor = $Clr.Text; $lv.BorderStyle = 'None'; $lv.Font = $Fnt.Normal
-    $lv.HeaderStyle = 'Nonclickable'; $lv.OwnerDraw = $true
-    [void]$lv.Columns.Add((M 'ชื่อ' 'Name'), 250)
-    [void]$lv.Columns.Add((M 'คำอธิบาย' 'Description'), 500)
-    $lv.Add_DrawColumnHeader({
-        param($s, $e)
-        $e.Graphics.FillRectangle((New-Object Drawing.SolidBrush $Clr.Side), $e.Bounds)
-        [Windows.Forms.TextRenderer]::DrawText($e.Graphics, $e.Header.Text, $Fnt.Bold, $e.Bounds, $Clr.Dim, ([Windows.Forms.TextFormatFlags]'VerticalCenter, Left'))
-    })
-    $lv.Add_DrawItem({ param($s, $e) $e.DrawDefault = $true })
-    $lv.Add_DrawSubItem({ param($s, $e) $e.DrawDefault = $true })
-    $lv.Add_ItemCheck({
-        param($s, $e)
-        if ($ui.Filling) { return }
-        if ($lv.Items[$e.Index].Tag.Required) { $e.NewValue = 'Checked' }
-    })
-    $lv.Add_ItemChecked({
-        param($s, $e)
-        if ($ui.Filling) { return }
-        $ui.Checked[$e.Item.Tag.Url] = $e.Item.Checked
-        Update-SelCount
-    })
-    $pg.Controls.Add($lv); $ui.Lv = $lv
-
-    $ui.SelCount = L $pg '' 24 320 400 22 $Fnt.Small $Clr.Dim
-    $ui.FxInfo = L $pg '' 430 320 364 22 $Fnt.Small $Clr.Dim
-    $ui.FxInfo.TextAlign = 'MiddleRight'
-    $null = B $pg (M 'ติดตั้ง effect ที่เลือก' 'Install selected') 24 346 200 40 'accent' {
-        $opt = @{ Addon = [bool]$Ctx.State.Addon; Force = $false; PackageUrls = @(Get-CheckedUrls); EffectsOnly = $true }
-        Start-Work (M 'ติดตั้งชุด effect' 'Install effect packages') 'Invoke-Install $Opt' $opt $true { param($r) $ui.Status.Text = (M 'ติดตั้ง effect เสร็จแล้ว' 'Effects installed') }
-    }
-    $null = B $pg (M 'ปิด effect ที่พัง' 'Turn off broken effects') 234 346 190 40 '' {
-        Start-Work (M 'ปิด effect ที่ compile ไม่ผ่าน' 'Turn off effects that failed to compile') 'Invoke-Cleanup' $null $false { param($r) $ui.Status.Text = (M "ปิด effect ที่พังแล้ว $r ไฟล์" "Turned off $r broken effects") }
-    }
-    $null = B $pg (M 'คืน effect ที่ปิด' 'Restore turned-off') 434 346 170 40 '' {
-        Start-Work (M 'คืน effect ที่ปิดไว้' 'Restore turned-off effects') 'Invoke-RestoreDisabled' $null $false { param($r) $ui.Status.Text = (M "คืน effect แล้ว $r ไฟล์" "Restored $r effects") }
-    }
-
-    function Get-CheckedUrls { @($ui.Packages | Where-Object { $_.Required -or $ui.Checked[$_.Url] } | ForEach-Object { $_.Url }) }
-    function Update-SelCount {
-        $n = @(Get-CheckedUrls).Count
-        $ui.SelCount.Text = (M "เลือก $n จาก $($ui.Packages.Count) ชุด   (* = แนะนำ)" "$n of $($ui.Packages.Count) selected   (* = recommended)")
-    }
-    function Set-Checked([string]$mode) {
-        foreach ($p in $ui.Packages) {
-            $ui.Checked[$p.Url] = switch ($mode) { 'all' { $true } 'basic' { $p.Required } default { $p.Required -or $p.Recommended } }
-        }
-        Fill-PackageList
-    }
-    function Fill-PackageList {
-        $q = $ui.Search.Text.Trim()
-        $ui.Filling = $true
-        $lv.BeginUpdate(); $lv.Items.Clear()
-        foreach ($p in $ui.Packages) {
-            if ($q -and ($p.Name -notlike "*$q*") -and ($p.Description -notlike "*$q*")) { continue }
-            $name = $(if ($p.Recommended) { '*' + ' ' } else { '    ' }) + $p.Name + $(if ($p.Required) { (M '  (จำเป็น)' '  (required)') } else { '' })
-            $it = New-Object Windows.Forms.ListViewItem $name
-            [void]$it.SubItems.Add($p.Description)
-            $it.Tag = $p
-            $it.Checked = [bool]($p.Required -or $ui.Checked[$p.Url])
-            if ($p.Required) { $it.ForeColor = $Clr.Dim }
-            [void]$lv.Items.Add($it)
-        }
-        $lv.EndUpdate()
-        $ui.Filling = $false
-        Update-SelCount
-    }
-
-    # ======================= PRESETS =======================
-    $pg = New-Page 'presets' 'Presets'
-    $ui.PresetList = New-Object Windows.Forms.ListBox
-    $ui.PresetList.Location = New-Object Drawing.Point 24, 58; $ui.PresetList.Size = New-Object Drawing.Size 500, 290
-    $ui.PresetList.BackColor = $Clr.Card; $ui.PresetList.ForeColor = $Clr.Text; $ui.PresetList.BorderStyle = 'None'; $ui.PresetList.Font = $Fnt.Normal
-    $ui.PresetList.ItemHeight = 22
-    $pg.Controls.Add($ui.PresetList)
-    $null = B $pg (M 'เพิ่มจากไฟล์...' 'Add from file...') 540 58 254 40 '' {
-        $dlg = New-Object Windows.Forms.OpenFileDialog
-        $dlg.Filter = 'ReShade preset (*.ini)|*.ini'; $dlg.Title = (M 'เลือกไฟล์ preset' 'Select a preset')
-        if ($dlg.ShowDialog($form) -eq 'OK') { $null = Add-Preset $dlg.FileName; Fill-Presets; Refresh-Status }
-    }
-    $null = B $pg (M 'เพิ่มจาก URL...' 'Add from URL...') 540 104 254 40 '' {
-        $u = [Microsoft.VisualBasic.Interaction]::InputBox((M 'วางลิงก์ไฟล์ preset (.ini)' 'Paste the preset (.ini) link'), 'Preset URL', '')
-        if ($u -match '^https?://') {
-            Start-Work (M 'ดาวน์โหลด preset' 'Download preset') 'Add-Preset $Opt.Url' @{ Url = $u } $false { param($r) Fill-Presets }
-        }
-    }
-    $null = B $pg (M 'ใช้ preset นี้' 'Use this preset') 540 150 254 40 'accent' {
-        $i = $ui.PresetList.SelectedIndex
-        if ($i -ge 0) { Set-ActivePreset $ui.PresetPaths[$i]; Add-LogLine 'ok' ((M 'ใช้ preset: ' 'Active preset: ') + [IO.Path]::GetFileName($ui.PresetPaths[$i])); Fill-Presets; Refresh-Status }
-    }
-    $null = B $pg (M 'ลบ' 'Delete') 540 196 254 40 'danger' {
-        $i = $ui.PresetList.SelectedIndex
-        if ($i -ge 0) {
-            $p = $ui.PresetPaths[$i]
-            if ([Windows.Forms.MessageBox]::Show($form, ((M 'ลบ ' 'Delete ') + [IO.Path]::GetFileName($p) + '?'), 'Preset', 'YesNo', 'Warning') -eq 'Yes') {
-                Remove-Item -LiteralPath $p -Force; Fill-Presets; Refresh-Status
-            }
-        }
-    }
-    $null = B $pg (M 'เปิดโฟลเดอร์ presets' 'Open presets folder') 540 242 254 40 '' {
-        New-Item -ItemType Directory -Path $Ctx.PresetDir -Force | Out-Null; Start-Process explorer.exe $Ctx.PresetDir
-    } $false
-    $null = L $pg (M 'เปลี่ยน preset แล้วเปิด FiveM ใหม่ หรือเปลี่ยนในเกมได้จากเมนู ReShade' 'Restart FiveM after changing, or switch in game from the ReShade menu') 24 356 770 22 $Fnt.Small $Clr.Dim
-
-    function Fill-Presets {
-        $ui.PresetList.Items.Clear()
-        $ui.PresetPaths = @(Get-Presets)
-        $active = Get-ActivePreset
-        foreach ($p in $ui.PresetPaths) {
-            $mark = if ($active -and ([IO.Path]::GetFullPath($p) -eq $active)) { '*' + '  ' } else { '    ' }
-            [void]$ui.PresetList.Items.Add($mark + [IO.Path]::GetFileName($p))
-        }
-        if (-not $ui.PresetPaths.Count) { [void]$ui.PresetList.Items.Add((M '   (ยังไม่มี preset)' '   (no presets yet)')) }
-    }
 
     # ======================= HOTKEYS =======================
     $pg = New-Page 'hotkeys' (M 'ปุ่มลัด' 'Hotkeys')
@@ -1619,15 +1480,11 @@ finally { `$Ctx.Sync.Done = `$true }
             [void][Windows.Forms.MessageBox]::Show($form, (M 'ไม่พบโฟลเดอร์ FiveM.app กรุณาเลือกเอง' 'FiveM.app folder not found. Please select it.'), 'FiveM', 'OK', 'Warning')
             Show-Page 'tools'
         }
-        Start-Work (M 'โหลดรายการ effect และเช็กเวอร์ชัน' 'Loading effect list and checking version') '[pscustomobject]@{ Packages = @(Get-PackageList); Latest = (Get-LatestReShade ([bool]$Ctx.State.Addon)) }' $null $false {
+        Start-Work (M 'เช็กเวอร์ชัน ReShade' 'Checking ReShade version') 'Get-LatestReShade ([bool]$Ctx.State.Addon)' $null $false {
             param($r)
             if ($r) {
-                $ui.Packages = @($r.Packages)
-                $ui.Latest = $r.Latest.Version
-                $saved = @($Ctx.State.Packages)
-                foreach ($p in $ui.Packages) { $ui.Checked[$p.Url] = $(if ($saved.Count) { $p.Required -or ($saved -contains $p.Url) } else { $p.Required -or $p.Recommended }) }
-                Fill-PackageList
-                Add-LogLine 'ok' ((M 'ReShade ล่าสุด: ' 'Latest ReShade: ') + $ui.Latest + '   ' + (M 'ชุด effect: ' 'Effect packages: ') + $ui.Packages.Count)
+                $ui.Latest = $r.Version
+                Add-LogLine 'ok' ((M 'ReShade ล่าสุด: ' 'Latest ReShade: ') + $ui.Latest)
             }
             $ui.Status.Text = (M 'พร้อม' 'Ready')
             $Sync.Pct = 0
