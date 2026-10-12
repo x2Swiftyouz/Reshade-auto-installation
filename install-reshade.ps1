@@ -575,7 +575,7 @@ function Get-PackageZips($packages) {
     while (@($jobs | Where-Object { -not $_.Handle.IsCompleted }).Count -gt 0) {
         $doneCount = @($jobs | Where-Object { $_.Handle.IsCompleted }).Count
         $bytes = 0L
-        foreach ($v in @($Ctx.Dl.Values)) { $bytes += [long]$v.Done }
+        foreach ($v in @($Ctx.Dl.get_Values())) { $bytes += [long]$v.Done }
         Set-Progress ([int](15 + 50 * $doneCount / [Math]::Max(1, $jobs.Count))) $null
         Set-Detail ((M 'ดาวน์โหลด ' 'Downloading ') + "$doneCount/$($jobs.Count)  " + (Format-Size $bytes) + '  ' + $spin[$i++ % 4])
         Start-Sleep -Milliseconds 250
@@ -1258,7 +1258,7 @@ function Show-Gui {
         @('home',    (M 'หน้าหลัก' 'Home')),
         @('effects', (M 'ชุด effect' 'Effects')),
         @('presets', 'Presets'),
-        @('keys',    (M 'ปุ่มลัด' 'Hotkeys')),
+        @('hotkeys',   (M 'ปุ่มลัด' 'Hotkeys')),
         @('backup',  (M 'สำรอง / กู้คืน' 'Backup / restore')),
         @('tools',   (M 'เครื่องมือ / ตั้งค่า' 'Tools / settings'))
     )
@@ -1275,14 +1275,14 @@ function Show-Gui {
     }
 
     function Show-Page([string]$name) {
-        foreach ($k in $ui.Pages.Keys) { $ui.Pages[$k].Visible = ($k -eq $name) }
-        foreach ($k in $ui.Nav.Keys) {
+        foreach ($k in $ui.Pages.get_Keys()) { $ui.Pages[$k].Visible = ($k -eq $name) }
+        foreach ($k in $ui.Nav.get_Keys()) {
             $ui.Nav[$k].BackColor = $(if ($k -eq $name) { $Clr.AccentD } else { $Clr.Side })
             $ui.Nav[$k].ForeColor = $(if ($k -eq $name) { $Clr.Text } else { $Clr.Dim })
         }
         switch ($name) {
             'presets' { Fill-Presets }
-            'keys'    { Load-Hotkeys }
+            'hotkeys' { Load-Hotkeys }
             'backup'  { Fill-Backups }
             'tools'   { $ui.PathBox.Text = $Ctx.FiveMApp }
         }
@@ -1332,7 +1332,7 @@ finally { `$Ctx.Sync.Done = `$true }
         if ($ui.Busy) {
             if ($Sync.Status) { $ui.Status.Text = $Sync.Status }
             $bytes = 0L; $running = $false
-            foreach ($v in @($Ctx.Dl.Values)) { $bytes += [long]$v.Done; if ($v.State -eq 'run') { $running = $true } }
+            foreach ($v in @($Ctx.Dl.get_Values())) { $bytes += [long]$v.Done; if ($v.State -eq 'run') { $running = $true } }
             $now = [DateTime]::Now
             $dt = ($now - $ui.LastTick).TotalSeconds
             if ($dt -ge 0.5) {
@@ -1582,7 +1582,7 @@ finally { `$Ctx.Sync.Done = `$true }
     }
 
     # ======================= HOTKEYS =======================
-    $pg = New-Page 'keys' (M 'ปุ่มลัด' 'Hotkeys')
+    $pg = New-Page 'hotkeys' (M 'ปุ่มลัด' 'Hotkeys')
     $keyNames = @($KeyList.Keys)
     $rows = @(
         @('KeyOverlay', (M 'เปิด / ปิดเมนู ReShade' 'Open / close the ReShade menu'), 36),
@@ -1606,19 +1606,19 @@ finally { `$Ctx.Sync.Done = `$true }
     }
     $null = B $pg (M 'บันทึกปุ่มลัด' 'Save hotkeys') 24 258 200 42 'accent' {
         $v = @{}
-        foreach ($k in $ui.KeyCombos.Keys) { $v[$k] = [int]$KeyList[[string]$ui.KeyCombos[$k].SelectedItem] }
+        foreach ($k in $ui.KeyCombos.get_Keys()) { $v[$k] = [int]$KeyList[[string]$ui.KeyCombos[$k].SelectedItem] }
         Set-Hotkeys $v.KeyOverlay $v.KeyEffects $v.KeyScreenshot
         Add-LogLine 'ok' (M 'บันทึกปุ่มลัดแล้ว มีผลเมื่อเปิด FiveM ใหม่' 'Hotkeys saved. Restart FiveM to apply.')
         $ui.Status.Text = (M 'บันทึกปุ่มลัดแล้ว' 'Hotkeys saved')
     }
     $null = B $pg (M 'ค่าเริ่มต้น' 'Defaults') 234 258 140 42 '' {
-        foreach ($k in $ui.KeyCombos.Keys) { $cb = $ui.KeyCombos[$k]; $name = ($KeyList.GetEnumerator() | Where-Object { $_.Value -eq $cb.Tag } | Select-Object -First 1).Key; $cb.SelectedItem = $name }
+        foreach ($k in $ui.KeyCombos.get_Keys()) { $cb = $ui.KeyCombos[$k]; $name = ($KeyList.GetEnumerator() | Where-Object { $_.Value -eq $cb.Tag } | Select-Object -First 1).Key; $cb.SelectedItem = $name }
     } $false
     $null = L $pg (M '"-" = ไม่ใช้ปุ่ม   |   ปุ่มเปิด/ปิด effect ช่วยเทียบภาพก่อน-หลัง' '"-" = no key   |   the effects key is handy for before/after') 24 310 770 22 $Fnt.Small $Clr.Dim
 
     function Load-Hotkeys {
         $hk = Get-Hotkeys
-        foreach ($k in $ui.KeyCombos.Keys) {
+        foreach ($k in $ui.KeyCombos.get_Keys()) {
             $cb = $ui.KeyCombos[$k]
             $vk = if ($hk[$k] -ge 0) { $hk[$k] } else { $cb.Tag }
             $name = ($KeyList.GetEnumerator() | Where-Object { $_.Value -eq $vk } | Select-Object -First 1).Key
