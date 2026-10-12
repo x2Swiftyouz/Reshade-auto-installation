@@ -18,7 +18,10 @@
     Write-Host 'Downloading ReShade for FiveM ...' -ForegroundColor Cyan
     Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing
 
+    # Run in this window so any error stays visible here. The app window opens on top;
+    # this prompt returns when the app is closed.
     $ps = Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    Start-Process -FilePath $ps -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$file`""
-    Write-Host 'Opening ReShade for FiveM ...' -ForegroundColor Green
+    Write-Host 'Opening ReShade for FiveM (this window waits until you close it) ...' -ForegroundColor Green
+    & $ps -NoProfile -ExecutionPolicy Bypass -File $file
+    if ($LASTEXITCODE) { Write-Host "ReShade for FiveM ended with exit code $LASTEXITCODE. Logs: $dir\logs" -ForegroundColor Yellow }
 }

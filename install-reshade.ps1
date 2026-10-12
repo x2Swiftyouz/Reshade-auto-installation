@@ -1725,6 +1725,8 @@ finally { `$Ctx.Sync.Done = `$true }
 
     # ---------- start ----------
     $form.Add_Shown({
+        # Bring the window to the front even when started from another window.
+        $form.TopMost = $true; $form.Activate(); $form.TopMost = $false
         Show-Page 'home'
         Refresh-Status
         $timer.Start()
