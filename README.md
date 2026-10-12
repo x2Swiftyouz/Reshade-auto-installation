@@ -32,8 +32,7 @@ Some antivirus programs flag ps2exe files by mistake. If that happens, use metho
 - Adds the `[Addons] ReShade5=ID:...` line to `CitizenFX.ini` by itself (reads the ID from the FiveM logs,
   or starts FiveM once to get it).
 - Turns off effects that fail to compile (reads `ReShade.log`). Turned-off effects can be restored.
-- Repair, backup / restore (newest 10 kept), presets (file or URL), hotkeys, Performance Mode,
-  screenshot folder, Desktop shortcut, weekly update check with a Windows notification.
+- Repair, presets (file or URL), hotkeys, Performance Mode.
 - Window UI in Thai or English. Text menu with `-NoGui`.
 
 ## Command line
@@ -44,7 +43,7 @@ powershell -ExecutionPolicy Bypass -File .\install-reshade.ps1 -NoGui -Action in
 
 | Parameter | Values |
 |---|---|
-| `-Action` | `menu`, `install`, `repair`, `effects`, `cleanup`, `preset`, `restore`, `open`, `uninstall`, `check` |
+| `-Action` | `menu`, `install`, `repair`, `effects`, `cleanup`, `preset`, `open`, `uninstall` |
 | `-Packages` | `recommended`, `all`, `basic`, or numbers like `"0,1,9,23"` |
 | `-Preset` | path or https URL of a preset `.ini` |
 | `-Addon` | use the ReShade build with full add-on support |
@@ -62,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File .\install-reshade.ps1 -NoGui -Action in
 | `...\plugins\reshade-shaders` | effects |
 | `...\plugins\reshade-shaders-disabled` | effects turned off because they failed to compile |
 | `...\plugins\presets` | presets |
-| `%LOCALAPPDATA%\ReShadeFiveM` | settings, cache, backups, logs |
+| `%LOCALAPPDATA%\ReShadeFiveM` | settings, cache, logs |
 
 ## Notes
 

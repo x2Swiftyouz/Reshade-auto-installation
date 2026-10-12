@@ -11,7 +11,7 @@
 
   Command line (no window):
     powershell -ExecutionPolicy Bypass -File .\install-reshade.ps1 -NoGui
-    -Action    menu | install | repair | effects | cleanup | preset | restore | open | uninstall | check
+    -Action    menu | install | repair | effects | cleanup | preset | open | uninstall
     -Packages  recommended | all | basic | "0,1,9,23"
     -Preset    path or https URL of a preset .ini
     -Addon     use the ReShade build with full add-on support
@@ -24,7 +24,7 @@
 #>
 
 param(
-    [ValidateSet('menu', 'install', 'repair', 'effects', 'cleanup', 'preset', 'restore', 'open', 'uninstall', 'check', 'icon')]
+    [ValidateSet('menu', 'install', 'repair', 'effects', 'cleanup', 'preset', 'open', 'uninstall', 'check', 'icon')]
     [string]$Action = 'menu',
     [string]$Packages,
     [string]$Preset,
@@ -61,7 +61,7 @@ try { [Net.WebRequest]::DefaultCachePolicy = New-Object Net.Cache.HttpRequestCac
 # If you host this script online (for "irm ... | iex"), put its raw URL here so the
 # Desktop shortcut and the weekly update check can save a local copy.
 $SelfUrl = 'https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/install-reshade.ps1'
-$ScriptVersion = '3.0.6'
+$ScriptVersion = '3.1.0'
 
 # Running as an .exe built with ps2exe?
 $SelfProcess = (Get-Process -Id $PID).Path
@@ -227,8 +227,8 @@ function Set-CtxPaths([string]$fivemApp) {
 
 function Get-State {
     $h = @{
-        Packages = @(); Addon = $false; Version = ''; Lang = ''; AutoLaunch = $false; WeeklyCheck = $true
-        Shortcut = $true; PerformanceMode = $false; FiveMApp = ''; DisabledFx = @()
+        Packages = @(); Addon = $false; Version = ''; Lang = ''; AutoLaunch = $false
+        PerformanceMode = $false; FiveMApp = ''; DisabledFx = @()
     }
     if (Test-Path -LiteralPath $Ctx.StateFile) {
         try {
@@ -329,6 +329,19 @@ function Get-IniValue([string]$path, [string]$section, [string]$key) {
         if ($inSec -and $t -match "^$([regex]::Escape($key))\s*=(.*)$") { return $Matches[1].Trim() }
     }
     return $null
+}
+
+function Remove-IniValue([string]$path, [string]$section, [string]$key) {
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    $out = [Collections.Generic.List[string]]::new()
+    $inSec = $false
+    foreach ($l in (Read-Lines $path)) {
+        $t = $l.Trim()
+        if ($t -match '^\[(.+)\]$') { $inSec = ($Matches[1] -ieq $section) }
+        elseif ($inSec -and $t -match "^$([regex]::Escape($key))\s*=") { continue }
+        $out.Add($l)
+    }
+    Write-Lines $path $out
 }
 
 function Get-Download([string]$url, [string]$out, [switch]$Cache) {
@@ -724,9 +737,10 @@ function Set-ReShadeSettings {
     Set-IniValue $Ctx.ReShadeIni 'GENERAL' 'TextureSearchPaths' "$($Ctx.ShadersDir)\Textures\**"
     Set-IniValue $Ctx.ReShadeIni 'GENERAL' 'PerformanceMode' $(if ($Ctx.State.PerformanceMode) { '1' } else { '0' })
     Set-IniValue $Ctx.ReShadeIni 'OVERLAY' 'TutorialProgress' '4'
-    New-Item -ItemType Directory -Path $Ctx.ShotDir -Force | Out-Null
-    Set-IniValue $Ctx.ReShadeIni 'SCREENSHOT' 'SavePath' $Ctx.ShotDir
-    Log 'ok' (M 'ตั้ง path effect, ข้าม tutorial, ที่เก็บ screenshot' 'Effect paths, tutorial skipped, screenshot folder set')
+    # Older versions set the screenshot folder to Pictures\FiveM. Remove that so ReShade uses its default.
+    $shot = Get-IniValue $Ctx.ReShadeIni 'SCREENSHOT' 'SavePath'
+    if ($shot -and ($shot -eq $Ctx.ShotDir -or $shot -like '*\Pictures\FiveM')) { Remove-IniValue $Ctx.ReShadeIni 'SCREENSHOT' 'SavePath' }
+    Log 'ok' (M 'ตั้ง path effect และข้าม tutorial' 'Effect paths set, tutorial skipped')
     if ($Ctx.State.PerformanceMode) { Log 'ok' (M 'Performance Mode: เปิด' 'Performance Mode: on') }
 }
 
@@ -783,63 +797,7 @@ function Set-ActivePreset([string]$path) {
 }
 
 # ---------------------------------------------------------------------------
-#  Backup / restore
-# ---------------------------------------------------------------------------
-function Backup-Configs {
-    $dst = Join-Path $Ctx.BackupRoot (Get-Date -Format 'yyyyMMdd-HHmmss')
-    $any = $false
-    foreach ($f in @($Ctx.CitizenIni, $Ctx.ReShadeIni, (Join-Path $Ctx.Plugins 'ReShadePreset.ini'))) {
-        if (Test-Path -LiteralPath $f) { New-Item -ItemType Directory -Path $dst -Force | Out-Null; Copy-Item -LiteralPath $f -Destination $dst -Force; $any = $true }
-    }
-    if (Test-Path -LiteralPath $Ctx.PresetDir) {
-        New-Item -ItemType Directory -Path $dst -Force | Out-Null
-        Copy-Item -LiteralPath $Ctx.PresetDir -Destination $dst -Recurse -Force
-        $any = $true
-    }
-    if (Test-Path -LiteralPath $Ctx.BackupRoot) {
-        Get-ChildItem -LiteralPath $Ctx.BackupRoot -Directory | Sort-Object Name -Descending | Select-Object -Skip 10 |
-            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    if ($any) { Log 'ok' ((M 'สำรองไฟล์แล้ว: ' 'Backup saved: ') + (Split-Path -Leaf $dst)) }
-    else { Log 'ok' (M 'ยังไม่มีไฟล์ตั้งค่าให้สำรอง' 'No config files to back up yet') }
-}
-
-function Get-Backups {
-    if (-not (Test-Path -LiteralPath $Ctx.BackupRoot)) { return @() }
-    @(Get-ChildItem -LiteralPath $Ctx.BackupRoot -Directory | Sort-Object Name -Descending | ForEach-Object {
-        $d = $null
-        try { $d = [datetime]::ParseExact($_.Name, 'yyyyMMdd-HHmmss', $null) } catch {}
-        $files = @(Get-ChildItem -LiteralPath $_.FullName -File | ForEach-Object { $_.Name })
-        if (Test-Path -LiteralPath (Join-Path $_.FullName 'presets')) { $files += 'presets\' }
-        [pscustomobject]@{
-            Name  = $_.Name
-            Path  = $_.FullName
-            Label = $(if ($d) { $d.ToString('yyyy-MM-dd HH:mm:ss') } else { $_.Name }) + '   ' + ($files -join ', ')
-        }
-    })
-}
-
-function Invoke-Restore([string]$backupPath) {
-    $Ctx.StepNo = 0; $Ctx.StepTotal = 3
-    Step (M 'ตรวจ FiveM' 'Check FiveM'); Close-FiveM
-    Step (M 'สำรองไฟล์ปัจจุบันก่อน' 'Back up current files first'); Backup-Configs
-    Step ((M 'กู้คืน ' 'Restore ') + (Split-Path -Leaf $backupPath))
-    $map = @{ 'CitizenFX.ini' = $Ctx.FiveMApp; 'ReShade.ini' = $Ctx.Plugins; 'ReShadePreset.ini' = $Ctx.Plugins }
-    foreach ($name in $map.Keys) {
-        $src = Join-Path $backupPath $name
-        if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $map[$name] -Force; Log 'ok' $name }
-    }
-    $pre = Join-Path $backupPath 'presets'
-    if (Test-Path -LiteralPath $pre) {
-        New-Item -ItemType Directory -Path $Ctx.PresetDir -Force | Out-Null
-        Copy-Item -Path (Join-Path $pre '*') -Destination $Ctx.PresetDir -Recurse -Force
-        Log 'ok' 'presets\'
-    }
-    Set-Progress 100 $null
-}
-
-# ---------------------------------------------------------------------------
-#  Shortcut, icon, weekly update check
+#  Icon, local copy, clean-up of removed features
 # ---------------------------------------------------------------------------
 function New-AppIcon([string]$path) {
     Add-Type -AssemblyName System.Drawing
@@ -903,43 +861,20 @@ function Get-LaunchCommand([string]$local, [string]$extraArgs) {
     return @{ File = $ps; Args = ("-NoProfile -ExecutionPolicy Bypass -File `"$local`" " + $extraArgs).Trim() }
 }
 
-function Install-Shortcut {
-    $local = Install-LocalCopy
-    if (-not $local) { Log 'warn' (M 'ข้าม shortcut (ไม่มีไฟล์โปรแกรมในเครื่อง)' 'Shortcut skipped (no local copy)'); return }
-    $icon = New-AppIcon (Join-Path $Ctx.HomeDir 'icon.ico')
-    $cmd = Get-LaunchCommand $local ''
-    if (-not $Ctx.IsExe) { $cmd.Args = '-WindowStyle Hidden ' + $cmd.Args }
-    $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'ReShade FiveM.lnk'
-    $ws = New-Object -ComObject WScript.Shell
-    $sc = $ws.CreateShortcut($lnk)
-    $sc.TargetPath = $cmd.File
-    $sc.Arguments = $cmd.Args
-    $sc.WorkingDirectory = $Ctx.HomeDir
-    $sc.IconLocation = "$icon,0"
-    $sc.WindowStyle = 7   # minimized console; the app window opens normally
-    $sc.Description = 'ReShade for FiveM'
-    $sc.Save()
-    Log 'ok' (M 'shortcut "ReShade FiveM" บน Desktop' 'Desktop shortcut "ReShade FiveM"')
-}
-
-function Set-UpdateTask([bool]$on) {
+# Older versions created a Desktop shortcut and a weekly scheduled task. Remove both.
+function Remove-LegacyFeatures {
     try {
-        $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-        if (-not $on) {
-            if ($existing) { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false }
-            Log 'ok' (M 'เช็กอัปเดตรายสัปดาห์: ปิด' 'Weekly update check: off')
-            return
+        if (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue) {
+            if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false }
         }
-        $local = Install-LocalCopy
-        if (-not $local) { Log 'warn' (M 'ตั้งเช็กอัปเดตไม่ได้ (ไม่มีไฟล์โปรแกรมในเครื่อง)' 'Cannot set update check (no local copy)'); return }
-        $cmd = Get-LaunchCommand $local '-Action check -NoGui'
-        if (-not $Ctx.IsExe) { $cmd.Args = '-WindowStyle Hidden ' + $cmd.Args }
-        $act = New-ScheduledTaskAction -Execute $cmd.File -Argument $cmd.Args
-        $trg = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At '12:00'
-        $set = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
-        Register-ScheduledTask -TaskName $TaskName -Action $act -Trigger $trg -Settings $set -Description 'Checks reshade.me for a new ReShade version for FiveM.' -Force | Out-Null
-        Log 'ok' (M 'เช็กอัปเดตรายสัปดาห์: เปิด (วันอาทิตย์ 12:00)' 'Weekly update check: on (Sunday 12:00)')
-    } catch { Log 'warn' ((M 'ตั้งเช็กอัปเดตไม่ได้: ' 'Could not set update check: ') + $_.Exception.Message) }
+    } catch {}
+    try {
+        $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'ReShade FiveM.lnk'
+        if (Test-Path -LiteralPath $lnk) {
+            $sc = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+            if (($sc.Arguments + ' ' + $sc.TargetPath + ' ' + $sc.WorkingDirectory) -match 'ReShadeFiveM') { Remove-Item -LiteralPath $lnk -Force }
+        }
+    } catch {}
 }
 
 # ---------------------------------------------------------------------------
@@ -967,13 +902,11 @@ function Get-Status {
 # $o: Addon, Force, PackageUrls ($null = keep saved), Preset, EffectsOnly
 function Invoke-Install($o) {
     $Ctx.StepNo = 0
-    $Ctx.StepTotal = if ($o.EffectsOnly) { 5 } else { 8 }
+    $Ctx.StepTotal = if ($o.EffectsOnly) { 4 } else { 6 }
     $stage = New-Stage
     try {
         Step (M 'ตรวจ FiveM' 'Check FiveM'); Close-FiveM
         New-Item -ItemType Directory -Path $Ctx.Plugins -Force | Out-Null
-
-        Step (M 'สำรองไฟล์ตั้งค่า' 'Back up config files'); Backup-Configs
 
         if (-not $o.EffectsOnly) {
             Step (M 'ตรวจเวอร์ชัน ReShade' 'Check ReShade version')
@@ -1006,24 +939,18 @@ function Invoke-Install($o) {
 
         Step (M 'ยืนยัน ReShade กับ FiveM' 'Confirm ReShade with FiveM'); Confirm-Ack
 
-        if (-not $o.EffectsOnly) {
-            Step (M 'shortcut และเช็กอัปเดต' 'Shortcut and update check')
-            if ($Ctx.State.Shortcut) { try { Install-Shortcut } catch { Log 'warn' $_.Exception.Message } }
-            Set-UpdateTask ([bool]$Ctx.State.WeeklyCheck)
-        }
         Save-State
         Set-Progress 100 (M 'เสร็จแล้ว' 'Done')
     } finally { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 function Invoke-Repair {
-    $Ctx.StepNo = 0; $Ctx.StepTotal = 6
+    $Ctx.StepNo = 0; $Ctx.StepTotal = 5
     $stage = New-Stage
     $fixed = 0
     try {
         Step (M 'ตรวจ FiveM' 'Check FiveM'); Close-FiveM
         New-Item -ItemType Directory -Path $Ctx.Plugins -Force | Out-Null
-        Step (M 'สำรองไฟล์ตั้งค่า' 'Back up config files'); Backup-Configs
 
         Step (M 'ตรวจ dxgi.dll' 'Check dxgi.dll')
         $installed = Get-InstalledReShade
@@ -1069,9 +996,8 @@ function Invoke-Repair {
 }
 
 function Invoke-Uninstall {
-    $Ctx.StepNo = 0; $Ctx.StepTotal = 3
+    $Ctx.StepNo = 0; $Ctx.StepTotal = 2
     Step (M 'ตรวจ FiveM' 'Check FiveM'); Close-FiveM
-    Step (M 'สำรองไฟล์ตั้งค่า' 'Back up config files'); Backup-Configs
     Step (M 'ลบ ReShade' 'Remove ReShade')
     foreach ($f in 'dxgi.dll', 'ReShade.ini', 'ReShadePreset.ini', 'ReShade.log', 'ReShade.log1') {
         Remove-Item -LiteralPath (Join-Path $Ctx.Plugins $f) -Force -ErrorAction SilentlyContinue
@@ -1080,21 +1006,10 @@ function Invoke-Uninstall {
     if (Test-Path -LiteralPath $Ctx.CitizenIni) {
         Write-Lines $Ctx.CitizenIni @((Read-Lines $Ctx.CitizenIni) | Where-Object { $_ -notmatch '^\s*ReShade\d*\s*=\s*ID:' })
     }
-    Set-UpdateTask $false
     $Ctx.State.Packages = @(); $Ctx.State.DisabledFx = @(); $Ctx.State.Version = ''
     Save-State
     Set-Progress 100 (M 'เสร็จแล้ว' 'Done')
-    Log 'ok' (M 'ลบ ReShade ออกจาก FiveM แล้ว (ไฟล์สำรองยังอยู่)' 'ReShade removed from FiveM (backups kept)')
-}
-
-# Used by the weekly scheduled task: notify when a newer ReShade is out.
-function Invoke-Check {
-    $installed = Get-InstalledReShade
-    if (-not $installed -or $installed -eq 'unknown') { return }
-    $latest = Get-LatestReShade ([bool]$Ctx.State.Addon)
-    if ($latest.Online -and [version]$latest.Version -gt [version]$installed) {
-        Show-Toast 'ReShade for FiveM' (M "ReShade $($latest.Version) ออกแล้ว (ในเครื่อง $installed) เปิด ReShade FiveM เพื่ออัปเดต" "ReShade $($latest.Version) is out (you have $installed). Open ReShade FiveM to update.")
-    }
+    Log 'ok' (M 'ลบ ReShade ออกจาก FiveM แล้ว' 'ReShade removed from FiveM')
 }
 
 }   # end of $Core
@@ -1265,7 +1180,6 @@ function Show-Gui {
         @('effects', (M 'ชุด effect' 'Effects')),
         @('presets', 'Presets'),
         @('hotkeys',   (M 'ปุ่มลัด' 'Hotkeys')),
-        @('backup',  (M 'สำรอง / กู้คืน' 'Backup / restore')),
         @('tools',   (M 'เครื่องมือ / ตั้งค่า' 'Tools / settings'))
     )
     $ny = 16
@@ -1289,7 +1203,6 @@ function Show-Gui {
         switch ($name) {
             'presets' { Fill-Presets }
             'hotkeys' { Load-Hotkeys }
-            'backup'  { Fill-Backups }
             'tools'   { $ui.PathBox.Text = $Ctx.FiveMApp }
         }
     }
@@ -1414,19 +1327,12 @@ finally { `$Ctx.Sync.Done = `$true }
     $ui.OptAddon = CB $pg (M 'ใช้ ReShade รุ่น Add-on' 'Use the ReShade Add-on build') 24 194 340 ([bool]$Ctx.State.Addon)
     $ui.OptPerf = CB $pg (M 'Performance Mode (FPS ดีขึ้น แก้ค่า effect ไม่ได้)' 'Performance Mode (more FPS, effects locked)') 24 222 380 ([bool]$Ctx.State.PerformanceMode)
     $ui.OptLaunch = CB $pg (M 'เปิด FiveM หลังติดตั้งเสร็จ' 'Start FiveM after install') 400 194 360 ([bool]$Ctx.State.AutoLaunch)
-    $ui.OptWeekly = CB $pg (M 'เช็กอัปเดต ReShade ทุกสัปดาห์' 'Check for ReShade updates weekly') 400 222 360 ([bool]$Ctx.State.WeeklyCheck)
-    $ui.OptShortcut = CB $pg (M 'สร้าง shortcut บน Desktop' 'Create Desktop shortcut') 24 250 340 ([bool]$Ctx.State.Shortcut)
 
     $ui.OptAddon.Add_CheckedChanged({ $Ctx.State.Addon = $ui.OptAddon.Checked; Save-State })
     $ui.OptLaunch.Add_CheckedChanged({ $Ctx.State.AutoLaunch = $ui.OptLaunch.Checked; Save-State })
-    $ui.OptShortcut.Add_CheckedChanged({ $Ctx.State.Shortcut = $ui.OptShortcut.Checked; Save-State })
     $ui.OptPerf.Add_CheckedChanged({
         $Ctx.State.PerformanceMode = $ui.OptPerf.Checked; Save-State
         if (Test-Path -LiteralPath $Ctx.ReShadeIni) { Set-IniValue $Ctx.ReShadeIni 'GENERAL' 'PerformanceMode' $(if ($ui.OptPerf.Checked) { '1' } else { '0' }) }
-    })
-    $ui.OptWeekly.Add_CheckedChanged({
-        $Ctx.State.WeeklyCheck = $ui.OptWeekly.Checked; Save-State
-        if (Get-InstalledReShade) { Set-UpdateTask $ui.OptWeekly.Checked }
     })
 
     $null = B $pg (M 'ติดตั้ง / อัปเดต' 'Install / update') 24 296 230 52 'accent' {
@@ -1633,33 +1539,6 @@ finally { `$Ctx.Sync.Done = `$true }
         }
     }
 
-    # ======================= BACKUP =======================
-    $pg = New-Page 'backup' (M 'สำรอง / กู้คืน' 'Backup / restore')
-    $ui.BackupList = New-Object Windows.Forms.ListBox
-    $ui.BackupList.Location = New-Object Drawing.Point 24, 58; $ui.BackupList.Size = New-Object Drawing.Size 560, 290
-    $ui.BackupList.BackColor = $Clr.Card; $ui.BackupList.ForeColor = $Clr.Text; $ui.BackupList.BorderStyle = 'None'; $ui.BackupList.Font = $Fnt.Normal
-    $pg.Controls.Add($ui.BackupList)
-    $null = B $pg (M 'กู้คืนที่เลือก' 'Restore selected') 600 58 194 42 'accent' {
-        $i = $ui.BackupList.SelectedIndex
-        if ($i -lt 0 -or $i -ge $ui.Backups.Count) { return }
-        $b = $ui.Backups[$i]
-        if ([Windows.Forms.MessageBox]::Show($form, ((M 'กู้คืนไฟล์ตั้งค่าจาก ' 'Restore settings from ') + $b.Name + '?'), (M 'กู้คืน' 'Restore'), 'YesNo', 'Question') -eq 'Yes') {
-            Start-Work (M 'กู้คืนไฟล์ตั้งค่า' 'Restore settings') 'Invoke-Restore $Opt.Path' @{ Path = $b.Path } $true { param($r) Fill-Backups; $ui.Status.Text = (M 'กู้คืนแล้ว' 'Restored') }
-        }
-    }
-    $null = B $pg (M 'สำรองตอนนี้' 'Back up now') 600 106 194 42 '' { Backup-Configs; Fill-Backups }
-    $null = B $pg (M 'เปิดโฟลเดอร์ backup' 'Open backup folder') 600 154 194 42 '' {
-        New-Item -ItemType Directory -Path $Ctx.BackupRoot -Force | Out-Null; Start-Process explorer.exe $Ctx.BackupRoot
-    } $false
-    $null = L $pg (M 'สำรองอัตโนมัติก่อนติดตั้ง/ซ่อม/ถอน ทุกครั้ง เก็บ 10 ชุดล่าสุด' 'Automatic backup before every install/repair/uninstall, newest 10 kept') 24 356 770 22 $Fnt.Small $Clr.Dim
-
-    function Fill-Backups {
-        $ui.BackupList.Items.Clear()
-        $ui.Backups = @(Get-Backups)
-        foreach ($b in $ui.Backups) { [void]$ui.BackupList.Items.Add('  ' + $b.Label) }
-        if (-not $ui.Backups.Count) { [void]$ui.BackupList.Items.Add((M '   (ยังไม่มีไฟล์สำรอง)' '   (no backups yet)')) }
-    }
-
     # ======================= TOOLS =======================
     $pg = New-Page 'tools' (M 'เครื่องมือ / ตั้งค่า' 'Tools / settings')
     $null = L $pg (M 'ภาษา' 'Language') 24 62 120 24 $Fnt.Normal $Clr.Dim
@@ -1694,18 +1573,16 @@ finally { `$Ctx.Sync.Done = `$true }
     $tx = 24; $ty = 150
     $tools = @(
         @((M 'โฟลเดอร์ plugins' 'plugins folder'), { New-Item -ItemType Directory -Path $Ctx.Plugins -Force | Out-Null; Start-Process explorer.exe $Ctx.Plugins }),
-        @((M 'โฟลเดอร์ screenshot' 'Screenshot folder'), { New-Item -ItemType Directory -Path $Ctx.ShotDir -Force | Out-Null; Start-Process explorer.exe $Ctx.ShotDir }),
         @('ReShade.log', { if (Test-Path -LiteralPath $Ctx.ReShadeLog) { Start-Process notepad.exe $Ctx.ReShadeLog } else { [void][Windows.Forms.MessageBox]::Show($form, (M 'ยังไม่มี ReShade.log' 'No ReShade.log yet')) } }),
         @((M 'log ของโปรแกรมนี้' 'Installer logs'), { Start-Process explorer.exe $Ctx.LogDir }),
-        @('reshade.me', { Start-Process 'https://reshade.me' }),
-        @((M 'สร้าง shortcut ใหม่' 'Recreate shortcut'), { Install-Shortcut })
+        @('reshade.me', { Start-Process 'https://reshade.me' })
     )
     foreach ($t in $tools) {
         $null = B $pg $t[0] $tx $ty 250 40 '' $t[1] $false
         $tx += 260; if ($tx -gt 600) { $tx = 24; $ty += 48 }
     }
     $null = B $pg (M 'ถอนการติดตั้ง ReShade' 'Uninstall ReShade') 24 300 250 42 'danger' {
-        if ([Windows.Forms.MessageBox]::Show($form, (M 'ลบ ReShade, effect และ preset ออกจาก FiveM? (มีไฟล์สำรองไว้)' 'Remove ReShade, effects and presets from FiveM? (a backup is kept)'), (M 'ถอนการติดตั้ง' 'Uninstall'), 'YesNo', 'Warning') -eq 'Yes') {
+        if ([Windows.Forms.MessageBox]::Show($form, (M 'ลบ ReShade, effect และ preset ออกจาก FiveM?' 'Remove ReShade, effects and presets from FiveM?'), (M 'ถอนการติดตั้ง' 'Uninstall'), 'YesNo', 'Warning') -eq 'Yes') {
             Start-Work (M 'ถอนการติดตั้ง' 'Uninstall') 'Invoke-Uninstall' $null $true { param($r) $ui.Status.Text = (M 'ถอนการติดตั้งแล้ว' 'Uninstalled') }
         }
     }
@@ -1888,14 +1765,13 @@ function Invoke-Console([string]$todo) {
         throw ((M 'ไม่พบโฟลเดอร์ FiveM.app: ' 'FiveM.app folder not found: ') + $Ctx.FiveMApp + (M '  (ใช้ -FiveMApp ระบุตำแหน่ง)' '  (use -FiveMApp)'))
     }
     if ($todo -eq 'menu') {
-        $acts = @('install', 'repair', 'effects', 'cleanup', 'preset', 'restore', 'open', 'uninstall', 'exit')
+        $acts = @('install', 'repair', 'effects', 'cleanup', 'preset', 'open', 'uninstall', 'exit')
         $i = Select-Arrow (M 'เมนู' 'Menu') @(
             (M 'ติดตั้ง / อัปเดต' 'Install / update'),
             (M 'ซ่อม' 'Repair'),
             (M 'เลือกชุด effect ใหม่' 'Choose effect packages again'),
             (M 'ปิด effect ที่พัง (อ่านจาก ReShade.log)' 'Turn off broken effects (from ReShade.log)'),
             (M 'ติดตั้ง preset' 'Install a preset'),
-            (M 'กู้คืนไฟล์สำรอง' 'Restore a backup'),
             (M 'เปิดโฟลเดอร์ plugins' 'Open plugins folder'),
             (M 'ถอนการติดตั้ง' 'Uninstall'),
             (M 'ออก' 'Exit')
@@ -1928,13 +1804,7 @@ function Invoke-Console([string]$todo) {
                 $dlg.Filter = 'ReShade preset (*.ini)|*.ini'
                 if ($dlg.ShowDialog() -eq 'OK') { $src = $dlg.FileName }
             }
-            if ($src) { Backup-Configs; $null = Add-Preset $src } else { Log 'warn' (M 'ไม่ได้เลือก preset' 'No preset selected') }
-        }
-        'restore' {
-            $list = @(Get-Backups)
-            if (-not $list.Count) { Log 'warn' (M 'ยังไม่มีไฟล์สำรอง' 'No backups yet'); break }
-            $i = Select-Arrow (M 'เลือกไฟล์สำรอง' 'Choose a backup') @($list | ForEach-Object { $_.Label }) 0 60
-            if ($i -ge 0) { Invoke-Restore $list[$i].Path }
+            if ($src) { $null = Add-Preset $src } else { Log 'warn' (M 'ไม่ได้เลือก preset' 'No preset selected') }
         }
         'open' { New-Item -ItemType Directory -Path $Ctx.Plugins -Force | Out-Null; Start-Process explorer.exe $Ctx.Plugins }
         'uninstall' {
@@ -1952,7 +1822,6 @@ $HomeDir = Join-Path $env:LOCALAPPDATA 'ReShadeFiveM'
 $Ctx = @{
     HomeDir     = $HomeDir
     StateFile   = Join-Path $HomeDir 'state.json'
-    BackupRoot  = Join-Path $HomeDir 'backup'
     LogDir      = Join-Path $HomeDir 'logs'
     ShotDir     = Join-Path $(if ([Environment]::GetFolderPath('MyPictures')) { [Environment]::GetFolderPath('MyPictures') } else { Join-Path $env:USERPROFILE 'Pictures' }) 'FiveM'
     Dl          = [hashtable]::Synchronized(@{})
@@ -1982,7 +1851,9 @@ Set-CtxPaths $fivem
 if (Test-Path -LiteralPath $fivem) { $Ctx.State.FiveMApp = $fivem }
 
 if ($Action -eq 'icon')  { $p = New-AppIcon (Join-Path $HomeDir 'icon.ico'); Write-Output $p; return }
-if ($Action -eq 'check') { try { Invoke-Check } catch {}; return }
+# 'check' was the weekly task of older versions: remove the task and stop.
+if ($Action -eq 'check') { Remove-LegacyFeatures; return }
+try { Remove-LegacyFeatures } catch {}
 
 New-Item -ItemType Directory -Path $Ctx.LogDir -Force | Out-Null
 $logFile = Join-Path $Ctx.LogDir ('run-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.log')
