@@ -1112,7 +1112,7 @@ function Show-Gui {
     })
     $Ctx.Sync = $Sync
 
-    $C = @{
+    $Clr = @{
         Bg      = [Drawing.Color]::FromArgb(23, 24, 29)
         Side    = [Drawing.Color]::FromArgb(30, 32, 39)
         Card    = [Drawing.Color]::FromArgb(39, 42, 52)
@@ -1128,7 +1128,7 @@ function Show-Gui {
         LogBg   = [Drawing.Color]::FromArgb(17, 18, 22)
     }
     $fontName = 'Leelawadee UI'
-    $F = @{
+    $Fnt = @{
         Normal = New-Object Drawing.Font $fontName, 10
         Small  = New-Object Drawing.Font $fontName, 8.5
         Bold   = New-Object Drawing.Font $fontName, 10, ([Drawing.FontStyle]::Bold)
@@ -1144,7 +1144,7 @@ function Show-Gui {
     function L($parent, [string]$text, [int]$x, [int]$y, [int]$w, [int]$h, $font, $color) {
         $l = New-Object Windows.Forms.Label
         $l.Text = $text; $l.Location = New-Object Drawing.Point $x, $y; $l.Size = New-Object Drawing.Size $w, $h
-        $l.Font = $(if ($font) { $font } else { $F.Normal }); $l.ForeColor = $(if ($color) { $color } else { $C.Text })
+        $l.Font = $(if ($font) { $font } else { $Fnt.Normal }); $l.ForeColor = $(if ($color) { $color } else { $Clr.Text })
         $l.BackColor = [Drawing.Color]::Transparent
         $parent.Controls.Add($l); return $l
     }
@@ -1152,11 +1152,11 @@ function Show-Gui {
         $b = New-Object Windows.Forms.Button
         $b.Text = $text; $b.Location = New-Object Drawing.Point $x, $y; $b.Size = New-Object Drawing.Size $w, $h
         $b.FlatStyle = 'Flat'; $b.FlatAppearance.BorderSize = 0; $b.Cursor = 'Hand'
-        $b.Font = $(if ($style -eq 'accent') { $F.Bold } else { $F.Normal }); $b.ForeColor = $C.Text
+        $b.Font = $(if ($style -eq 'accent') { $Fnt.Bold } else { $Fnt.Normal }); $b.ForeColor = $Clr.Text
         switch ($style) {
-            'accent' { $b.BackColor = $C.Accent; $b.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(118, 146, 255) }
-            'danger' { $b.BackColor = $C.Danger; $b.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(200, 60, 72) }
-            default  { $b.BackColor = $C.Card;   $b.FlatAppearance.MouseOverBackColor = $C.CardHi }
+            'accent' { $b.BackColor = $Clr.Accent; $b.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(118, 146, 255) }
+            'danger' { $b.BackColor = $Clr.Danger; $b.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(200, 60, 72) }
+            default  { $b.BackColor = $Clr.Card;   $b.FlatAppearance.MouseOverBackColor = $Clr.CardHi }
         }
         if ($click) { $b.Add_Click($click) }
         $parent.Controls.Add($b)
@@ -1166,18 +1166,18 @@ function Show-Gui {
     function CB($parent, [string]$text, [int]$x, [int]$y, [int]$w, [bool]$checked) {
         $c = New-Object Windows.Forms.CheckBox
         $c.Text = $text; $c.Location = New-Object Drawing.Point $x, $y; $c.Size = New-Object Drawing.Size $w, 26
-        $c.Checked = $checked; $c.ForeColor = $C.Text; $c.Font = $F.Normal; $c.FlatStyle = 'Flat'; $c.Cursor = 'Hand'
+        $c.Checked = $checked; $c.ForeColor = $Clr.Text; $c.Font = $Fnt.Normal; $c.FlatStyle = 'Flat'; $c.Cursor = 'Hand'
         $parent.Controls.Add($c); return $c
     }
     function Card($parent, [int]$x, [int]$y, [int]$w, [int]$h) {
         $p = New-Object Windows.Forms.Panel
-        $p.Location = New-Object Drawing.Point $x, $y; $p.Size = New-Object Drawing.Size $w, $h; $p.BackColor = $C.Card
+        $p.Location = New-Object Drawing.Point $x, $y; $p.Size = New-Object Drawing.Size $w, $h; $p.BackColor = $Clr.Card
         $parent.Controls.Add($p); return $p
     }
     function New-Page([string]$name, [string]$title) {
         $p = New-Object Windows.Forms.Panel
-        $p.Dock = 'Fill'; $p.BackColor = $C.Bg; $p.Visible = $false
-        $null = L $p $title 24 14 600 32 $F.Head $C.Text
+        $p.Dock = 'Fill'; $p.BackColor = $Clr.Bg; $p.Visible = $false
+        $null = L $p $title 24 14 600 32 $Fnt.Head $Clr.Text
         $content.Controls.Add($p); $ui.Pages[$name] = $p
         return $p
     }
@@ -1188,9 +1188,9 @@ function Show-Gui {
         $rect = New-Object Drawing.Rectangle 0, 0, ($size - 1), ($size - 1)
         $br = New-Object Drawing.Drawing2D.LinearGradientBrush $rect, ([Drawing.Color]::FromArgb(124, 77, 255)), ([Drawing.Color]::FromArgb(0, 176, 255)), ([float]45)
         $g.FillEllipse($br, $rect)
-        $fnt = New-Object Drawing.Font 'Segoe UI', ([float]($size * 0.5)), ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
+        $iconFont = New-Object Drawing.Font 'Segoe UI', ([float]($size * 0.5)), ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
         $sf = New-Object Drawing.StringFormat; $sf.Alignment = 'Center'; $sf.LineAlignment = 'Center'
-        $g.DrawString('R', $fnt, [Drawing.Brushes]::White, (New-Object Drawing.RectangleF 0, ([float]($size * 0.02)), $size, $size), $sf)
+        $g.DrawString('R', $iconFont, [Drawing.Brushes]::White, (New-Object Drawing.RectangleF 0, ([float]($size * 0.02)), $size, $size), $sf)
         $g.Dispose()
         return $bmp
     }
@@ -1200,12 +1200,12 @@ function Show-Gui {
     $form.Text = "ReShade for FiveM  v$ScriptVersion"
     $form.ClientSize = New-Object Drawing.Size 1000, 690
     $form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedSingle'; $form.MaximizeBox = $false
-    $form.BackColor = $C.Bg; $form.ForeColor = $C.Text; $form.Font = $F.Normal
+    $form.BackColor = $Clr.Bg; $form.ForeColor = $Clr.Text; $form.Font = $Fnt.Normal
     try { $form.Icon = [Drawing.Icon]::FromHandle((Get-IconBitmap 64).GetHicon()) } catch {}
 
-    $content = New-Object Windows.Forms.Panel; $content.Dock = 'Fill'; $content.BackColor = $C.Bg
-    $side = New-Object Windows.Forms.Panel; $side.Dock = 'Left'; $side.Width = 190; $side.BackColor = $C.Side
-    $bottom = New-Object Windows.Forms.Panel; $bottom.Dock = 'Bottom'; $bottom.Height = 196; $bottom.BackColor = $C.Side
+    $content = New-Object Windows.Forms.Panel; $content.Dock = 'Fill'; $content.BackColor = $Clr.Bg
+    $side = New-Object Windows.Forms.Panel; $side.Dock = 'Left'; $side.Width = 190; $side.BackColor = $Clr.Side
+    $bottom = New-Object Windows.Forms.Panel; $bottom.Dock = 'Bottom'; $bottom.Height = 196; $bottom.BackColor = $Clr.Side
     $header = New-Object Windows.Forms.Panel; $header.Dock = 'Top'; $header.Height = 74
     $form.Controls.AddRange(@($content, $side, $bottom, $header))
 
@@ -1218,35 +1218,35 @@ function Show-Gui {
     $pic = New-Object Windows.Forms.PictureBox
     $pic.Image = Get-IconBitmap 46; $pic.Location = New-Object Drawing.Point 18, 14; $pic.Size = New-Object Drawing.Size 46, 46; $pic.BackColor = [Drawing.Color]::Transparent
     $header.Controls.Add($pic)
-    $null = L $header 'ReShade for FiveM' 76 10 400 34 $F.Title $C.Text
-    $ui.HeadSub = L $header '' 78 44 880 22 $F.Small ([Drawing.Color]::FromArgb(220, 225, 255))
+    $null = L $header 'ReShade for FiveM' 76 10 400 34 $Fnt.Title $Clr.Text
+    $ui.HeadSub = L $header '' 78 44 880 22 $Fnt.Small ([Drawing.Color]::FromArgb(220, 225, 255))
 
     # Bottom: progress bar, status, log.
-    $barBg = New-Object Windows.Forms.Panel; $barBg.Location = New-Object Drawing.Point 16, 12; $barBg.Size = New-Object Drawing.Size 968, 8; $barBg.BackColor = $C.Card
-    $bar = New-Object Windows.Forms.Panel; $bar.Location = New-Object Drawing.Point 0, 0; $bar.Size = New-Object Drawing.Size 0, 8; $bar.BackColor = $C.Accent
+    $barBg = New-Object Windows.Forms.Panel; $barBg.Location = New-Object Drawing.Point 16, 12; $barBg.Size = New-Object Drawing.Size 968, 8; $barBg.BackColor = $Clr.Card
+    $bar = New-Object Windows.Forms.Panel; $bar.Location = New-Object Drawing.Point 0, 0; $bar.Size = New-Object Drawing.Size 0, 8; $bar.BackColor = $Clr.Accent
     $barBg.Controls.Add($bar); $bottom.Controls.Add($barBg)
     $ui.Bar = $bar; $ui.BarBg = $barBg
-    $ui.Status = L $bottom (M 'พร้อม' 'Ready') 16 26 560 22 $F.Bold $C.Text
-    $ui.Detail = L $bottom '' 580 26 404 22 $F.Small $C.Dim
+    $ui.Status = L $bottom (M 'พร้อม' 'Ready') 16 26 560 22 $Fnt.Bold $Clr.Text
+    $ui.Detail = L $bottom '' 580 26 404 22 $Fnt.Small $Clr.Dim
     $ui.Detail.TextAlign = 'MiddleRight'
     $rtb = New-Object Windows.Forms.RichTextBox
     $rtb.Location = New-Object Drawing.Point 16, 52; $rtb.Size = New-Object Drawing.Size 968, 132
-    $rtb.ReadOnly = $true; $rtb.BorderStyle = 'None'; $rtb.BackColor = $C.LogBg; $rtb.ForeColor = $C.Dim; $rtb.Font = $F.Log
+    $rtb.ReadOnly = $true; $rtb.BorderStyle = 'None'; $rtb.BackColor = $Clr.LogBg; $rtb.ForeColor = $Clr.Dim; $rtb.Font = $Fnt.Log
     $rtb.DetectUrls = $false
     $bottom.Controls.Add($rtb); $ui.Log = $rtb
 
     function Add-LogLine([string]$level, [string]$text) {
         $map = @{
-            step = @($C.Accent, ([string][char]0x25B6 + ' '))
-            ok   = @($C.Green, ('   ' + [string][char]0x2714 + ' '))
-            warn = @($C.Amber, ('   ' + [string][char]0x26A0 + ' '))
-            err  = @($C.Red, ('   ' + [string][char]0x2716 + ' '))
-            info = @($C.Dim, '     ')
+            step = @($Clr.Accent, ([string][char]0x25B6 + ' '))
+            ok   = @($Clr.Green, ('   ' + [string][char]0x2714 + ' '))
+            warn = @($Clr.Amber, ('   ' + [string][char]0x26A0 + ' '))
+            err  = @($Clr.Red, ('   ' + [string][char]0x2716 + ' '))
+            info = @($Clr.Dim, '     ')
         }
         $m = $map[$level]; if (-not $m) { $m = $map.info }
         $rtb.SelectionStart = $rtb.TextLength; $rtb.SelectionLength = 0
         $rtb.SelectionColor = $m[0]
-        $rtb.SelectionFont = $(if ($level -eq 'step') { $F.Bold } else { $F.Log })
+        $rtb.SelectionFont = $(if ($level -eq 'step') { $Fnt.Bold } else { $Fnt.Log })
         $rtb.AppendText($m[1] + $text + "`n")
         $rtb.SelectionStart = $rtb.TextLength; $rtb.ScrollToCaret()
     }
@@ -1265,8 +1265,8 @@ function Show-Gui {
         $nb = New-Object Windows.Forms.Button
         $nb.Text = '   ' + $n[1]; $nb.Tag = $n[0]; $nb.TextAlign = 'MiddleLeft'
         $nb.Location = New-Object Drawing.Point 0, $ny; $nb.Size = New-Object Drawing.Size 190, 44
-        $nb.FlatStyle = 'Flat'; $nb.FlatAppearance.BorderSize = 0; $nb.FlatAppearance.MouseOverBackColor = $C.Card
-        $nb.Font = $F.Normal; $nb.ForeColor = $C.Dim; $nb.BackColor = $C.Side; $nb.Cursor = 'Hand'
+        $nb.FlatStyle = 'Flat'; $nb.FlatAppearance.BorderSize = 0; $nb.FlatAppearance.MouseOverBackColor = $Clr.Card
+        $nb.Font = $Fnt.Normal; $nb.ForeColor = $Clr.Dim; $nb.BackColor = $Clr.Side; $nb.Cursor = 'Hand'
         $nb.Add_Click({ Show-Page $this.Tag })
         $side.Controls.Add($nb); $ui.Nav[$n[0]] = $nb
         $ny += 46
@@ -1275,8 +1275,8 @@ function Show-Gui {
     function Show-Page([string]$name) {
         foreach ($k in $ui.Pages.Keys) { $ui.Pages[$k].Visible = ($k -eq $name) }
         foreach ($k in $ui.Nav.Keys) {
-            $ui.Nav[$k].BackColor = $(if ($k -eq $name) { $C.AccentD } else { $C.Side })
-            $ui.Nav[$k].ForeColor = $(if ($k -eq $name) { $C.Text } else { $C.Dim })
+            $ui.Nav[$k].BackColor = $(if ($k -eq $name) { $Clr.AccentD } else { $Clr.Side })
+            $ui.Nav[$k].ForeColor = $(if ($k -eq $name) { $Clr.Text } else { $Clr.Dim })
         }
         switch ($name) {
             'presets' { Fill-Presets }
@@ -1354,11 +1354,11 @@ finally { `$Ctx.Sync.Done = `$true }
             if ($Sync.Error) {
                 Add-LogLine 'err' $Sync.Error
                 $ui.Status.Text = (M 'ผิดพลาด: ' 'Error: ') + $Sync.Error
-                $ui.Bar.BackColor = $C.Red
+                $ui.Bar.BackColor = $Clr.Red
                 Show-Toast 'ReShade for FiveM' (M 'ทำงานไม่สำเร็จ ดูรายละเอียดในหน้าต่าง' 'Something failed. See the window.')
                 [void][Windows.Forms.MessageBox]::Show($form, $Sync.Error, (M 'เกิดข้อผิดพลาด' 'Error'), 'OK', 'Error')
             } else {
-                $ui.Bar.BackColor = $C.Accent
+                $ui.Bar.BackColor = $Clr.Accent
                 if ($w.OnDone) { & $w.OnDone $Sync.Result }
             }
             Refresh-Status
@@ -1371,10 +1371,10 @@ finally { `$Ctx.Sync.Done = `$true }
         $ui.CardVer.Text = $(if ($st.Installed) { $st.Installed } else { '-' })
         $ui.CardVerSub.Text = (M 'ล่าสุด: ' 'Latest: ') + $(if ($ui.Latest) { $ui.Latest } else { '...' })
         if ($st.Installed -and $ui.Latest -and $st.Installed -ne 'unknown') {
-            try { if ([version]$st.Installed -lt [version]$ui.Latest) { $ui.CardVerSub.Text += (M '  (มีอัปเดต)' '  (update)'); $ui.CardVerSub.ForeColor = $C.Amber } else { $ui.CardVerSub.ForeColor = $C.Dim } } catch {}
+            try { if ([version]$st.Installed -lt [version]$ui.Latest) { $ui.CardVerSub.Text += (M '  (มีอัปเดต)' '  (update)'); $ui.CardVerSub.ForeColor = $Clr.Amber } else { $ui.CardVerSub.ForeColor = $Clr.Dim } } catch {}
         }
         $ui.CardAck.Text = $(if ($st.Ack) { (M 'พร้อม' 'Ready') } else { (M 'ยังไม่ยืนยัน' 'Not confirmed') })
-        $ui.CardAck.ForeColor = $(if ($st.Ack) { $C.Green } else { $C.Amber })
+        $ui.CardAck.ForeColor = $(if ($st.Ack) { $Clr.Green } else { $Clr.Amber })
         $ui.CardFx.Text = "$($st.Effects)"
         $ui.CardFxSub.Text = "$($st.Packages) " + (M 'ชุด, ' 'packages, ') + (Format-Size $st.ShadersSize) + $(if ($st.Disabled) { (M ", ปิด $($st.Disabled)" ", $($st.Disabled) off") } else { '' })
         $ui.CardPreset.Text = $(if ($st.Preset) { $st.Preset } else { '-' })
@@ -1386,23 +1386,23 @@ finally { `$Ctx.Sync.Done = `$true }
     $pg = New-Page 'home' (M 'หน้าหลัก' 'Home')
     $cw = 180; $cx = 24
     $c1 = Card $pg $cx 58 $cw 96
-    $null = L $c1 'ReShade' 12 8 150 20 $F.Small $C.Dim
-    $ui.CardVer = L $c1 '-' 12 28 160 36 $F.Big $C.Text
-    $ui.CardVerSub = L $c1 '' 12 66 166 22 $F.Small $C.Dim
+    $null = L $c1 'ReShade' 12 8 150 20 $Fnt.Small $Clr.Dim
+    $ui.CardVer = L $c1 '-' 12 28 160 36 $Fnt.Big $Clr.Text
+    $ui.CardVerSub = L $c1 '' 12 66 166 22 $Fnt.Small $Clr.Dim
     $c2 = Card $pg ($cx + 190) 58 $cw 96
-    $null = L $c2 'FiveM (CitizenFX.ini)' 12 8 160 20 $F.Small $C.Dim
-    $ui.CardAck = L $c2 '-' 12 28 166 36 $F.Big $C.Text
-    $null = L $c2 '[Addons] ReShade' 12 66 160 22 $F.Small $C.Dim
+    $null = L $c2 'FiveM (CitizenFX.ini)' 12 8 160 20 $Fnt.Small $Clr.Dim
+    $ui.CardAck = L $c2 '-' 12 28 166 36 $Fnt.Big $Clr.Text
+    $null = L $c2 '[Addons] ReShade' 12 66 160 22 $Fnt.Small $Clr.Dim
     $c3 = Card $pg ($cx + 380) 58 $cw 96
-    $null = L $c3 'Effects' 12 8 150 20 $F.Small $C.Dim
-    $ui.CardFx = L $c3 '0' 12 28 160 36 $F.Big $C.Text
-    $ui.CardFxSub = L $c3 '' 12 66 166 22 $F.Small $C.Dim
+    $null = L $c3 'Effects' 12 8 150 20 $Fnt.Small $Clr.Dim
+    $ui.CardFx = L $c3 '0' 12 28 160 36 $Fnt.Big $Clr.Text
+    $ui.CardFxSub = L $c3 '' 12 66 166 22 $Fnt.Small $Clr.Dim
     $c4 = Card $pg ($cx + 570) 58 $cw 96
-    $null = L $c4 'Preset' 12 8 150 20 $F.Small $C.Dim
-    $ui.CardPreset = L $c4 '-' 12 34 166 30 $F.Head $C.Text
-    $null = L $c4 (M 'ใช้อยู่' 'active') 12 66 160 22 $F.Small $C.Dim
+    $null = L $c4 'Preset' 12 8 150 20 $Fnt.Small $Clr.Dim
+    $ui.CardPreset = L $c4 '-' 12 34 166 30 $Fnt.Head $Clr.Text
+    $null = L $c4 (M 'ใช้อยู่' 'active') 12 66 160 22 $Fnt.Small $Clr.Dim
 
-    $null = L $pg (M 'ตัวเลือก' 'Options') 24 168 300 24 $F.Bold $C.Dim
+    $null = L $pg (M 'ตัวเลือก' 'Options') 24 168 300 24 $Fnt.Bold $Clr.Dim
     $ui.OptAddon = CB $pg (M 'ใช้ ReShade รุ่น Add-on' 'Use the ReShade Add-on build') 24 194 340 ([bool]$Ctx.State.Addon)
     $ui.OptPerf = CB $pg (M 'Performance Mode (FPS ดีขึ้น แก้ค่า effect ไม่ได้)' 'Performance Mode (more FPS, effects locked)') 24 222 380 ([bool]$Ctx.State.PerformanceMode)
     $ui.OptLaunch = CB $pg (M 'เปิด FiveM หลังติดตั้งเสร็จ' 'Start FiveM after install') 400 194 360 ([bool]$Ctx.State.AutoLaunch)
@@ -1444,14 +1444,14 @@ finally { `$Ctx.Sync.Done = `$true }
         if (Test-Path -LiteralPath $Ctx.FiveMExe) { Start-Process -FilePath $Ctx.FiveMExe } else { [void][Windows.Forms.MessageBox]::Show($form, (M 'ไม่พบ FiveM.exe' 'FiveM.exe not found')) }
     }
     $null = B $pg 'Changelog' 694 296 100 52 '' { Start-Process 'https://reshade.me' } $false
-    $null = L $pg (M 'ในเกม: Home = เปิดเมนู ReShade   |   ตั้งปุ่มอื่นได้ที่หน้า "ปุ่มลัด"' 'In game: Home = ReShade menu   |   change keys on the "Hotkeys" page') 24 362 770 22 $F.Small $C.Dim
+    $null = L $pg (M 'ในเกม: Home = เปิดเมนู ReShade   |   ตั้งปุ่มอื่นได้ที่หน้า "ปุ่มลัด"' 'In game: Home = ReShade menu   |   change keys on the "Hotkeys" page') 24 362 770 22 $Fnt.Small $Clr.Dim
 
     # ======================= EFFECTS =======================
     $pg = New-Page 'effects' (M 'ชุด effect' 'Effect packages')
-    $null = L $pg (M 'ค้นหา' 'Search') 24 58 60 26 $F.Normal $C.Dim
+    $null = L $pg (M 'ค้นหา' 'Search') 24 58 60 26 $Fnt.Normal $Clr.Dim
     $ui.Search = New-Object Windows.Forms.TextBox
     $ui.Search.Location = New-Object Drawing.Point 84, 56; $ui.Search.Size = New-Object Drawing.Size 300, 26
-    $ui.Search.BackColor = $C.Card; $ui.Search.ForeColor = $C.Text; $ui.Search.BorderStyle = 'FixedSingle'
+    $ui.Search.BackColor = $Clr.Card; $ui.Search.ForeColor = $Clr.Text; $ui.Search.BorderStyle = 'FixedSingle'
     $ui.Search.Add_TextChanged({ Fill-PackageList })
     $pg.Controls.Add($ui.Search)
     $null = B $pg (M 'แนะนำ' 'Recommended') 400 54 110 30 '' { Set-Checked 'recommended' } $false
@@ -1464,14 +1464,14 @@ finally { `$Ctx.Sync.Done = `$true }
     $lv = New-Object Windows.Forms.ListView
     $lv.Location = New-Object Drawing.Point 24, 92; $lv.Size = New-Object Drawing.Size 770, 222
     $lv.View = 'Details'; $lv.CheckBoxes = $true; $lv.FullRowSelect = $true; $lv.HideSelection = $false
-    $lv.BackColor = $C.Card; $lv.ForeColor = $C.Text; $lv.BorderStyle = 'None'; $lv.Font = $F.Normal
+    $lv.BackColor = $Clr.Card; $lv.ForeColor = $Clr.Text; $lv.BorderStyle = 'None'; $lv.Font = $Fnt.Normal
     $lv.HeaderStyle = 'Nonclickable'; $lv.OwnerDraw = $true
     [void]$lv.Columns.Add((M 'ชื่อ' 'Name'), 250)
     [void]$lv.Columns.Add((M 'คำอธิบาย' 'Description'), 500)
     $lv.Add_DrawColumnHeader({
         param($s, $e)
-        $e.Graphics.FillRectangle((New-Object Drawing.SolidBrush $C.Side), $e.Bounds)
-        [Windows.Forms.TextRenderer]::DrawText($e.Graphics, $e.Header.Text, $F.Bold, $e.Bounds, $C.Dim, ([Windows.Forms.TextFormatFlags]'VerticalCenter, Left'))
+        $e.Graphics.FillRectangle((New-Object Drawing.SolidBrush $Clr.Side), $e.Bounds)
+        [Windows.Forms.TextRenderer]::DrawText($e.Graphics, $e.Header.Text, $Fnt.Bold, $e.Bounds, $Clr.Dim, ([Windows.Forms.TextFormatFlags]'VerticalCenter, Left'))
     })
     $lv.Add_DrawItem({ param($s, $e) $e.DrawDefault = $true })
     $lv.Add_DrawSubItem({ param($s, $e) $e.DrawDefault = $true })
@@ -1488,8 +1488,8 @@ finally { `$Ctx.Sync.Done = `$true }
     })
     $pg.Controls.Add($lv); $ui.Lv = $lv
 
-    $ui.SelCount = L $pg '' 24 320 400 22 $F.Small $C.Dim
-    $ui.FxInfo = L $pg '' 430 320 364 22 $F.Small $C.Dim
+    $ui.SelCount = L $pg '' 24 320 400 22 $Fnt.Small $Clr.Dim
+    $ui.FxInfo = L $pg '' 430 320 364 22 $Fnt.Small $Clr.Dim
     $ui.FxInfo.TextAlign = 'MiddleRight'
     $null = B $pg (M 'ติดตั้ง effect ที่เลือก' 'Install selected') 24 346 200 40 'accent' {
         $opt = @{ Addon = [bool]$Ctx.State.Addon; Force = $false; PackageUrls = @(Get-CheckedUrls); EffectsOnly = $true }
@@ -1524,7 +1524,7 @@ finally { `$Ctx.Sync.Done = `$true }
             [void]$it.SubItems.Add($p.Description)
             $it.Tag = $p
             $it.Checked = [bool]($p.Required -or $ui.Checked[$p.Url])
-            if ($p.Required) { $it.ForeColor = $C.Dim }
+            if ($p.Required) { $it.ForeColor = $Clr.Dim }
             [void]$lv.Items.Add($it)
         }
         $lv.EndUpdate()
@@ -1536,7 +1536,7 @@ finally { `$Ctx.Sync.Done = `$true }
     $pg = New-Page 'presets' 'Presets'
     $ui.PresetList = New-Object Windows.Forms.ListBox
     $ui.PresetList.Location = New-Object Drawing.Point 24, 58; $ui.PresetList.Size = New-Object Drawing.Size 500, 290
-    $ui.PresetList.BackColor = $C.Card; $ui.PresetList.ForeColor = $C.Text; $ui.PresetList.BorderStyle = 'None'; $ui.PresetList.Font = $F.Normal
+    $ui.PresetList.BackColor = $Clr.Card; $ui.PresetList.ForeColor = $Clr.Text; $ui.PresetList.BorderStyle = 'None'; $ui.PresetList.Font = $Fnt.Normal
     $ui.PresetList.ItemHeight = 22
     $pg.Controls.Add($ui.PresetList)
     $null = B $pg (M 'เพิ่มจากไฟล์...' 'Add from file...') 540 58 254 40 '' {
@@ -1566,7 +1566,7 @@ finally { `$Ctx.Sync.Done = `$true }
     $null = B $pg (M 'เปิดโฟลเดอร์ presets' 'Open presets folder') 540 242 254 40 '' {
         New-Item -ItemType Directory -Path $Ctx.PresetDir -Force | Out-Null; Start-Process explorer.exe $Ctx.PresetDir
     } $false
-    $null = L $pg (M 'เปลี่ยน preset แล้วเปิด FiveM ใหม่ หรือเปลี่ยนในเกมได้จากเมนู ReShade' 'Restart FiveM after changing, or switch in game from the ReShade menu') 24 356 770 22 $F.Small $C.Dim
+    $null = L $pg (M 'เปลี่ยน preset แล้วเปิด FiveM ใหม่ หรือเปลี่ยนในเกมได้จากเมนู ReShade' 'Restart FiveM after changing, or switch in game from the ReShade menu') 24 356 770 22 $Fnt.Small $Clr.Dim
 
     function Fill-Presets {
         $ui.PresetList.Items.Clear()
@@ -1591,10 +1591,10 @@ finally { `$Ctx.Sync.Done = `$true }
     $ky = 64
     foreach ($r in $rows) {
         $kc = Card $pg 24 $ky 500 52
-        $null = L $kc $r[1] 16 14 280 24 $F.Normal $C.Text
+        $null = L $kc $r[1] 16 14 280 24 $Fnt.Normal $Clr.Text
         $cb = New-Object Windows.Forms.ComboBox
         $cb.DropDownStyle = 'DropDownList'; $cb.FlatStyle = 'Flat'
-        $cb.BackColor = $C.Side; $cb.ForeColor = $C.Text; $cb.Font = $F.Normal
+        $cb.BackColor = $Clr.Side; $cb.ForeColor = $Clr.Text; $cb.Font = $Fnt.Normal
         $cb.Location = New-Object Drawing.Point 300, 12; $cb.Size = New-Object Drawing.Size 180, 28
         [void]$cb.Items.AddRange([object[]]$keyNames)
         $cb.Tag = $r[2]
@@ -1612,7 +1612,7 @@ finally { `$Ctx.Sync.Done = `$true }
     $null = B $pg (M 'ค่าเริ่มต้น' 'Defaults') 234 258 140 42 '' {
         foreach ($k in $ui.KeyCombos.Keys) { $cb = $ui.KeyCombos[$k]; $name = ($KeyList.GetEnumerator() | Where-Object { $_.Value -eq $cb.Tag } | Select-Object -First 1).Key; $cb.SelectedItem = $name }
     } $false
-    $null = L $pg (M '"-" = ไม่ใช้ปุ่ม   |   ปุ่มเปิด/ปิด effect ช่วยเทียบภาพก่อน-หลัง' '"-" = no key   |   the effects key is handy for before/after') 24 310 770 22 $F.Small $C.Dim
+    $null = L $pg (M '"-" = ไม่ใช้ปุ่ม   |   ปุ่มเปิด/ปิด effect ช่วยเทียบภาพก่อน-หลัง' '"-" = no key   |   the effects key is handy for before/after') 24 310 770 22 $Fnt.Small $Clr.Dim
 
     function Load-Hotkeys {
         $hk = Get-Hotkeys
@@ -1629,7 +1629,7 @@ finally { `$Ctx.Sync.Done = `$true }
     $pg = New-Page 'backup' (M 'สำรอง / กู้คืน' 'Backup / restore')
     $ui.BackupList = New-Object Windows.Forms.ListBox
     $ui.BackupList.Location = New-Object Drawing.Point 24, 58; $ui.BackupList.Size = New-Object Drawing.Size 560, 290
-    $ui.BackupList.BackColor = $C.Card; $ui.BackupList.ForeColor = $C.Text; $ui.BackupList.BorderStyle = 'None'; $ui.BackupList.Font = $F.Normal
+    $ui.BackupList.BackColor = $Clr.Card; $ui.BackupList.ForeColor = $Clr.Text; $ui.BackupList.BorderStyle = 'None'; $ui.BackupList.Font = $Fnt.Normal
     $pg.Controls.Add($ui.BackupList)
     $null = B $pg (M 'กู้คืนที่เลือก' 'Restore selected') 600 58 194 42 'accent' {
         $i = $ui.BackupList.SelectedIndex
@@ -1643,7 +1643,7 @@ finally { `$Ctx.Sync.Done = `$true }
     $null = B $pg (M 'เปิดโฟลเดอร์ backup' 'Open backup folder') 600 154 194 42 '' {
         New-Item -ItemType Directory -Path $Ctx.BackupRoot -Force | Out-Null; Start-Process explorer.exe $Ctx.BackupRoot
     } $false
-    $null = L $pg (M 'สำรองอัตโนมัติก่อนติดตั้ง/ซ่อม/ถอน ทุกครั้ง เก็บ 10 ชุดล่าสุด' 'Automatic backup before every install/repair/uninstall, newest 10 kept') 24 356 770 22 $F.Small $C.Dim
+    $null = L $pg (M 'สำรองอัตโนมัติก่อนติดตั้ง/ซ่อม/ถอน ทุกครั้ง เก็บ 10 ชุดล่าสุด' 'Automatic backup before every install/repair/uninstall, newest 10 kept') 24 356 770 22 $Fnt.Small $Clr.Dim
 
     function Fill-Backups {
         $ui.BackupList.Items.Clear()
@@ -1654,9 +1654,9 @@ finally { `$Ctx.Sync.Done = `$true }
 
     # ======================= TOOLS =======================
     $pg = New-Page 'tools' (M 'เครื่องมือ / ตั้งค่า' 'Tools / settings')
-    $null = L $pg (M 'ภาษา' 'Language') 24 62 120 24 $F.Normal $C.Dim
+    $null = L $pg (M 'ภาษา' 'Language') 24 62 120 24 $Fnt.Normal $Clr.Dim
     $ui.LangBox = New-Object Windows.Forms.ComboBox
-    $ui.LangBox.DropDownStyle = 'DropDownList'; $ui.LangBox.FlatStyle = 'Flat'; $ui.LangBox.BackColor = $C.Card; $ui.LangBox.ForeColor = $C.Text
+    $ui.LangBox.DropDownStyle = 'DropDownList'; $ui.LangBox.FlatStyle = 'Flat'; $ui.LangBox.BackColor = $Clr.Card; $ui.LangBox.ForeColor = $Clr.Text
     $ui.LangBox.Location = New-Object Drawing.Point 150, 58; $ui.LangBox.Size = New-Object Drawing.Size 160, 28
     [void]$ui.LangBox.Items.AddRange(@('ไทย', 'English'))
     $ui.LangBox.SelectedIndex = $(if ($Ctx.Lang -eq 'en') { 1 } else { 0 })
@@ -1668,10 +1668,10 @@ finally { `$Ctx.Sync.Done = `$true }
     })
     $pg.Controls.Add($ui.LangBox)
 
-    $null = L $pg 'FiveM.app' 24 104 120 24 $F.Normal $C.Dim
+    $null = L $pg 'FiveM.app' 24 104 120 24 $Fnt.Normal $Clr.Dim
     $ui.PathBox = New-Object Windows.Forms.TextBox
     $ui.PathBox.Location = New-Object Drawing.Point 150, 100; $ui.PathBox.Size = New-Object Drawing.Size 400, 26
-    $ui.PathBox.ReadOnly = $true; $ui.PathBox.BackColor = $C.Card; $ui.PathBox.ForeColor = $C.Text; $ui.PathBox.BorderStyle = 'FixedSingle'
+    $ui.PathBox.ReadOnly = $true; $ui.PathBox.BackColor = $Clr.Card; $ui.PathBox.ForeColor = $Clr.Text; $ui.PathBox.BorderStyle = 'FixedSingle'
     $pg.Controls.Add($ui.PathBox)
     $null = B $pg (M 'เลือก...' 'Browse...') 560 98 110 30 '' {
         $dlg = New-Object Windows.Forms.FolderBrowserDialog
@@ -1701,7 +1701,7 @@ finally { `$Ctx.Sync.Done = `$true }
             Start-Work (M 'ถอนการติดตั้ง' 'Uninstall') 'Invoke-Uninstall' $null $true { param($r) $ui.Status.Text = (M 'ถอนการติดตั้งแล้ว' 'Uninstalled') }
         }
     }
-    $null = L $pg ("ReShade for FiveM v$ScriptVersion   |   " + (M 'ดาวน์โหลดจาก reshade.me และ GitHub เท่านั้น' 'Downloads only from reshade.me and GitHub')) 24 356 770 22 $F.Small $C.Dim
+    $null = L $pg ("ReShade for FiveM v$ScriptVersion   |   " + (M 'ดาวน์โหลดจาก reshade.me และ GitHub เท่านั้น' 'Downloads only from reshade.me and GitHub')) 24 356 770 22 $Fnt.Small $Clr.Dim
 
     function Set-FiveMPath([string]$path) {
         $p = $path
