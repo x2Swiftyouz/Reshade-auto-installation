@@ -9,6 +9,8 @@
     $ErrorActionPreference = 'Stop'
     $ProgressPreference = 'SilentlyContinue'
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    # Windows PowerShell 5.1 keeps web responses in the local Internet cache for minutes.
+    [Net.WebRequest]::DefaultCachePolicy = New-Object Net.Cache.HttpRequestCachePolicy ([Net.Cache.HttpRequestCacheLevel]::NoCacheNoStore)
 
     $dir  = Join-Path $env:LOCALAPPDATA 'ReShadeFiveM'
     $file = Join-Path $dir 'install-reshade.ps1'
@@ -20,14 +22,16 @@
     # commit and download that exact version, so a fresh push is used right away.
     try {
         $api = 'https://api.github.com/repos/x2Swiftyouz/Reshade-auto-installation/commits/main'
-        $sha = (Invoke-RestMethod -Uri $api -UseBasicParsing -Headers @{ 'User-Agent' = 'ReShadeFiveM' }).sha
+        $sha = (Invoke-RestMethod -Uri ($api + '?t=' + [DateTime]::UtcNow.Ticks) -UseBasicParsing -Headers @{ 'User-Agent' = 'ReShadeFiveM'; 'Cache-Control' = 'no-cache' }).sha
         if ($sha -match '^[0-9a-f]{40}$') { $url = $url -replace '/main/', "/$sha/" }
     } catch {
         $url = $url + '?nocache=' + [DateTime]::UtcNow.Ticks
     }
 
     Write-Host 'Downloading ReShade for FiveM ...' -ForegroundColor Cyan
-    Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing
+    # A unique query string also skips any local cache.
+    $url = $url + $(if ($url.Contains('?')) { '&' } else { '?' }) + 't=' + [DateTime]::UtcNow.Ticks
+    Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing -Headers @{ 'Cache-Control' = 'no-cache' }
 
     # Run in this window so any error stays visible here. The app window opens on top;
     # this prompt returns when the app is closed.

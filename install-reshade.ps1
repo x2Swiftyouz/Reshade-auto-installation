@@ -55,6 +55,8 @@ function Show-FatalError($err) {
 trap { Show-FatalError $_; break }
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch {}
+# Do not reuse responses from the local Internet cache (Windows PowerShell 5.1 does by default).
+try { [Net.WebRequest]::DefaultCachePolicy = New-Object Net.Cache.HttpRequestCachePolicy ([Net.Cache.HttpRequestCacheLevel]::NoCacheNoStore) } catch {}
 
 # If you host this script online (for "irm ... | iex"), put its raw URL here so the
 # Desktop shortcut and the weekly update check can save a local copy.
