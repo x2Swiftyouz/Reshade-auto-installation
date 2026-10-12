@@ -15,6 +15,17 @@
     $url  = 'https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/install-reshade.ps1'
 
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
+
+    # raw.githubusercontent.com caches "main" for a few minutes. Ask GitHub for the newest
+    # commit and download that exact version, so a fresh push is used right away.
+    try {
+        $api = 'https://api.github.com/repos/x2Swiftyouz/Reshade-auto-installation/commits/main'
+        $sha = (Invoke-RestMethod -Uri $api -UseBasicParsing -Headers @{ 'User-Agent' = 'ReShadeFiveM' }).sha
+        if ($sha -match '^[0-9a-f]{40}$') { $url = $url -replace '/main/', "/$sha/" }
+    } catch {
+        $url = $url + '?nocache=' + [DateTime]::UtcNow.Ticks
+    }
+
     Write-Host 'Downloading ReShade for FiveM ...' -ForegroundColor Cyan
     Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing
 
