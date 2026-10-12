@@ -10,7 +10,7 @@ Files go into the FiveM `plugins` folder. The GTA V folder is never touched.
 **วิธีที่ 1 – คำสั่งบรรทัดเดียว (PowerShell)**
 
 ```powershell
-irm https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/install-reshade.ps1 | iex
+irm https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/setup.ps1 | iex
 ```
 
 **วิธีที่ 2 – ดาวน์โหลดไฟล์**

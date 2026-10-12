@@ -7,7 +7,7 @@
   - Adds the [Addons] ReShade line to CitizenFX.ini by itself.
 
   Start: double-click "Install-ReShade-FiveM.bat" (opens the window), or in PowerShell:
-    irm https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/install-reshade.ps1 | iex
+    irm https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/setup.ps1 | iex
 
   Command line (no window):
     powershell -ExecutionPolicy Bypass -File .\install-reshade.ps1 -NoGui
@@ -1974,8 +1974,20 @@ try {
         try { Show-Gui; $guiOk = $true }
         catch {
             $Ctx.Sync = $null
-            Write-Host ((M 'เปิดหน้าต่างไม่ได้ ใช้เมนูข้อความแทน: ' 'Could not open the window, using the text menu: ') + $_.Exception.Message) -ForegroundColor Yellow
+            $msg = $_.Exception.Message
+            # The window may have been started hidden, so report with a message box and stop
+            # (a hidden text menu would pick its default by itself).
+            try {
+                Add-Type -AssemblyName System.Windows.Forms
+                [void][System.Windows.Forms.MessageBox]::Show(
+                    ((M 'เปิดหน้าต่างไม่ได้: ' 'Could not open the window: ') + $msg + "`n`n" +
+                     (M 'ลองรันแบบเมนูข้อความ: install-reshade.ps1 -NoGui' 'Try the text menu: install-reshade.ps1 -NoGui') + "`n" +
+                     (M 'log: ' 'log: ') + $Ctx.LogDir),
+                    'ReShade for FiveM', 'OK', 'Error')
+            } catch {}
+            throw
         }
+        $guiOk = $true
     }
     if (-not $guiOk) { Invoke-Console $Action }
     Save-State
@@ -1988,7 +2000,7 @@ try {
     Show-Toast 'ReShade for FiveM' (M 'ทำงานไม่สำเร็จ ดูรายละเอียดในหน้าต่าง' 'Something failed. See the window.')
 } finally {
     try { Stop-Transcript | Out-Null } catch {}
-    if (-not $guiOk) {
+    if (-not $useGui) {
         Write-Host ''
         Write-Host ('  Log: ' + $logFile) -ForegroundColor DarkGray
         if ($failed) {
