@@ -28,7 +28,8 @@
         $url = $url + '?nocache=' + [DateTime]::UtcNow.Ticks
     }
 
-    Write-Host 'Downloading ReShade for FiveM ...' -ForegroundColor Cyan
+    $ver = if ($url -match '/([0-9a-f]{40})/') { $Matches[1].Substring(0, 7) } else { 'main' }
+    Write-Host "Downloading ReShade for FiveM (build $ver) ..." -ForegroundColor Cyan
     # A unique query string also skips any local cache.
     $url = $url + $(if ($url.Contains('?')) { '&' } else { '?' }) + 't=' + [DateTime]::UtcNow.Ticks
     Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing -Headers @{ 'Cache-Control' = 'no-cache' }

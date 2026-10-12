@@ -61,7 +61,7 @@ try { [Net.WebRequest]::DefaultCachePolicy = New-Object Net.Cache.HttpRequestCac
 # If you host this script online (for "irm ... | iex"), put its raw URL here so the
 # Desktop shortcut and the weekly update check can save a local copy.
 $SelfUrl = 'https://raw.githubusercontent.com/x2Swiftyouz/Reshade-auto-installation/main/install-reshade.ps1'
-$ScriptVersion = '3.0'
+$ScriptVersion = '3.0.6'
 
 # Running as an .exe built with ps2exe?
 $SelfProcess = (Get-Process -Id $PID).Path
