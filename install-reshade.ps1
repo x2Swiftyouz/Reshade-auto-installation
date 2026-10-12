@@ -40,6 +40,19 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+
+# The launcher starts this script with a hidden console. Any error not handled below
+# is shown in a message box, so it is never silent.
+function Show-FatalError($err) {
+    $text = 'ReShade for FiveM error:' + "`n`n" + $err.Exception.Message
+    if ($err.InvocationInfo) { $text += "`n`nLine " + $err.InvocationInfo.ScriptLineNumber + ': ' + $err.InvocationInfo.Line.Trim() }
+    $text += "`n`nLogs: " + (Join-Path $env:LOCALAPPDATA 'ReShadeFiveM\logs')
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        [void][System.Windows.Forms.MessageBox]::Show($text, 'ReShade for FiveM', 'OK', 'Error')
+    } catch { Write-Host $text -ForegroundColor Red }
+}
+trap { Show-FatalError $_; break }
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch {}
 
@@ -834,7 +847,7 @@ function New-AppIcon([string]$path) {
         $g = [Drawing.Graphics]::FromImage($bmp)
         $g.SmoothingMode = 'AntiAlias'; $g.TextRenderingHint = 'AntiAliasGridFit'
         $rect = New-Object Drawing.Rectangle 0, 0, ($size - 1), ($size - 1)
-        $brush = New-Object Drawing.Drawing2D.LinearGradientBrush $rect, ([Drawing.Color]::FromArgb(124, 77, 255)), ([Drawing.Color]::FromArgb(0, 176, 255)), 45
+        $brush = New-Object Drawing.Drawing2D.LinearGradientBrush $rect, ([Drawing.Color]::FromArgb(124, 77, 255)), ([Drawing.Color]::FromArgb(0, 176, 255)), ([float]45)
         $g.FillEllipse($brush, $rect)
         $font = New-Object Drawing.Font 'Segoe UI', ([float]($size * 0.5)), ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
         $sf = New-Object Drawing.StringFormat
@@ -1173,7 +1186,7 @@ function Show-Gui {
         $g = [Drawing.Graphics]::FromImage($bmp)
         $g.SmoothingMode = 'AntiAlias'; $g.TextRenderingHint = 'AntiAliasGridFit'
         $rect = New-Object Drawing.Rectangle 0, 0, ($size - 1), ($size - 1)
-        $br = New-Object Drawing.Drawing2D.LinearGradientBrush $rect, ([Drawing.Color]::FromArgb(124, 77, 255)), ([Drawing.Color]::FromArgb(0, 176, 255)), 45
+        $br = New-Object Drawing.Drawing2D.LinearGradientBrush $rect, ([Drawing.Color]::FromArgb(124, 77, 255)), ([Drawing.Color]::FromArgb(0, 176, 255)), ([float]45)
         $g.FillEllipse($br, $rect)
         $fnt = New-Object Drawing.Font 'Segoe UI', ([float]($size * 0.5)), ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
         $sf = New-Object Drawing.StringFormat; $sf.Alignment = 'Center'; $sf.LineAlignment = 'Center'
@@ -1199,7 +1212,7 @@ function Show-Gui {
     # Header: gradient background image, icon, title, version line.
     $hb = New-Object Drawing.Bitmap 1000, 74
     $hg = [Drawing.Graphics]::FromImage($hb)
-    $hbr = New-Object Drawing.Drawing2D.LinearGradientBrush (New-Object Drawing.Rectangle 0, 0, 1000, 74), ([Drawing.Color]::FromArgb(70, 40, 160)), ([Drawing.Color]::FromArgb(0, 120, 200)), 0
+    $hbr = New-Object Drawing.Drawing2D.LinearGradientBrush (New-Object Drawing.Rectangle 0, 0, 1000, 74), ([Drawing.Color]::FromArgb(70, 40, 160)), ([Drawing.Color]::FromArgb(0, 120, 200)), ([float]0)
     $hg.FillRectangle($hbr, 0, 0, 1000, 74); $hg.Dispose()
     $header.BackgroundImage = $hb
     $pic = New-Object Windows.Forms.PictureBox
@@ -1931,7 +1944,7 @@ $Ctx = @{
     StateFile   = Join-Path $HomeDir 'state.json'
     BackupRoot  = Join-Path $HomeDir 'backup'
     LogDir      = Join-Path $HomeDir 'logs'
-    ShotDir     = Join-Path ([Environment]::GetFolderPath('MyPictures')) 'FiveM'
+    ShotDir     = Join-Path $(if ([Environment]::GetFolderPath('MyPictures')) { [Environment]::GetFolderPath('MyPictures') } else { Join-Path $env:USERPROFILE 'Pictures' }) 'FiveM'
     Dl          = [hashtable]::Synchronized(@{})
     Sync        = $null
     StepNo      = 0
@@ -1974,17 +1987,9 @@ try {
         try { Show-Gui; $guiOk = $true }
         catch {
             $Ctx.Sync = $null
-            $msg = $_.Exception.Message
             # The window may have been started hidden, so report with a message box and stop
             # (a hidden text menu would pick its default by itself).
-            try {
-                Add-Type -AssemblyName System.Windows.Forms
-                [void][System.Windows.Forms.MessageBox]::Show(
-                    ((M 'เปิดหน้าต่างไม่ได้: ' 'Could not open the window: ') + $msg + "`n`n" +
-                     (M 'ลองรันแบบเมนูข้อความ: install-reshade.ps1 -NoGui' 'Try the text menu: install-reshade.ps1 -NoGui') + "`n" +
-                     (M 'log: ' 'log: ') + $Ctx.LogDir),
-                    'ReShade for FiveM', 'OK', 'Error')
-            } catch {}
+            Show-FatalError $_
             throw
         }
         $guiOk = $true
