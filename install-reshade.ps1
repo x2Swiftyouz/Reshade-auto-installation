@@ -1138,6 +1138,7 @@ function Show-Gui {
         Title  = New-Object Drawing.Font $fontName, 17, ([Drawing.FontStyle]::Bold)
         Head   = New-Object Drawing.Font $fontName, 13, ([Drawing.FontStyle]::Bold)
         Log    = New-Object Drawing.Font $fontName, 9
+        Sym    = New-Object Drawing.Font 'Segoe UI Symbol', 9
     }
     $ui = @{ Busy = $false; ActionButtons = New-Object System.Collections.ArrayList; Pages = @{}; Nav = @{}
              Packages = @(); Checked = @{}; Filling = $false; Latest = $null; LastBytes = 0L; LastTick = [DateTime]::Now; Speed = 0.0 }
@@ -1246,10 +1247,15 @@ function Show-Gui {
             info = @($Clr.Dim, '     ')
         }
         $m = $map[$level]; if (-not $m) { $m = $map.info }
+        # The symbol uses Segoe UI Symbol (the Thai font has no such glyphs), the text the Thai font.
+        $rtb.SelectionStart = $rtb.TextLength; $rtb.SelectionLength = 0
+        $rtb.SelectionColor = $m[0]
+        $rtb.SelectionFont = $Fnt.Sym
+        $rtb.AppendText($m[1])
         $rtb.SelectionStart = $rtb.TextLength; $rtb.SelectionLength = 0
         $rtb.SelectionColor = $m[0]
         $rtb.SelectionFont = $(if ($level -eq 'step') { $Fnt.Bold } else { $Fnt.Log })
-        $rtb.AppendText($m[1] + $text + "`n")
+        $rtb.AppendText($text + "`n")
         $rtb.SelectionStart = $rtb.TextLength; $rtb.ScrollToCaret()
     }
 
@@ -1507,7 +1513,7 @@ finally { `$Ctx.Sync.Done = `$true }
     function Get-CheckedUrls { @($ui.Packages | Where-Object { $_.Required -or $ui.Checked[$_.Url] } | ForEach-Object { $_.Url }) }
     function Update-SelCount {
         $n = @(Get-CheckedUrls).Count
-        $ui.SelCount.Text = (M "เลือก $n จาก $($ui.Packages.Count) ชุด   (★ = แนะนำ)" "$n of $($ui.Packages.Count) selected   (★ = recommended)")
+        $ui.SelCount.Text = (M "เลือก $n จาก $($ui.Packages.Count) ชุด   (* = แนะนำ)" "$n of $($ui.Packages.Count) selected   (* = recommended)")
     }
     function Set-Checked([string]$mode) {
         foreach ($p in $ui.Packages) {
@@ -1521,7 +1527,7 @@ finally { `$Ctx.Sync.Done = `$true }
         $lv.BeginUpdate(); $lv.Items.Clear()
         foreach ($p in $ui.Packages) {
             if ($q -and ($p.Name -notlike "*$q*") -and ($p.Description -notlike "*$q*")) { continue }
-            $name = $(if ($p.Recommended) { [string][char]0x2605 + ' ' } else { '    ' }) + $p.Name + $(if ($p.Required) { (M '  (จำเป็น)' '  (required)') } else { '' })
+            $name = $(if ($p.Recommended) { '*' + ' ' } else { '    ' }) + $p.Name + $(if ($p.Required) { (M '  (จำเป็น)' '  (required)') } else { '' })
             $it = New-Object Windows.Forms.ListViewItem $name
             [void]$it.SubItems.Add($p.Description)
             $it.Tag = $p
@@ -1575,7 +1581,7 @@ finally { `$Ctx.Sync.Done = `$true }
         $ui.PresetPaths = @(Get-Presets)
         $active = Get-ActivePreset
         foreach ($p in $ui.PresetPaths) {
-            $mark = if ($active -and ([IO.Path]::GetFullPath($p) -eq $active)) { [string][char]0x2605 + '  ' } else { '    ' }
+            $mark = if ($active -and ([IO.Path]::GetFullPath($p) -eq $active)) { '*' + '  ' } else { '    ' }
             [void]$ui.PresetList.Items.Add($mark + [IO.Path]::GetFileName($p))
         }
         if (-not $ui.PresetPaths.Count) { [void]$ui.PresetList.Items.Add((M '   (ยังไม่มี preset)' '   (no presets yet)')) }
